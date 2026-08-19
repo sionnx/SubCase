@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.compose.compiler)
     id("org.lsposed.lsplugin.apksign") version "1.4"
 
@@ -24,9 +23,17 @@ val androidStorePassword: String? by rootProject
 val androidKeyAlias: String? by rootProject
 val androidKeyPassword: String? by rootProject
 
+base {
+    archivesName = "SubCase-$verName-$verCode"
+}
+
 android {
     namespace = "ano.subcase"
-    compileSdk = 35
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 0
+        }
+    }
 
     defaultConfig {
         applicationId = "ano.subcase"
@@ -62,14 +69,10 @@ android {
                 "proguard-rules.pro"
             )
         }
-        setProperty("archivesBaseName", "SubCase-$verName-$verCode")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = "17"
     }
     packaging {
         resources.excludes.addAll(listOf("META-INF/*"))
@@ -89,19 +92,22 @@ android {
 }
 
 dependencies {
+    val composeBom = platform(libs.androidx.compose.bom)
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
+    implementation(composeBom)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(composeBom)
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
@@ -111,11 +117,11 @@ dependencies {
     //com.google.accompanist:accompanist-systemuicontroller
     implementation(libs.accompanist.systemuicontroller)
 
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation(libs.okhttp)
 
-    implementation("com.caoccao.javet:javet-node-android:4.1.7")
+    implementation(libs.javet.node.android)
 
     // Google Firebase Crashlytics
-    implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
-    implementation("com.google.firebase:firebase-crashlytics-ndk")
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics.ndk)
 }
