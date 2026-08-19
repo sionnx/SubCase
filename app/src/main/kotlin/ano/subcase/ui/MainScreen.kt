@@ -55,8 +55,10 @@ import ano.subcase.ui.theme.switchColors
 import ano.subcase.util.ConfigStore
 import ano.subcase.util.SubStore
 import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MainScreen(navController: NavController) {
@@ -157,13 +159,19 @@ fun UpdateDialog() {
                         }
                         isUpdating.value = true
                         GlobalScope.launch {
+                            var updateSucceeded = true
                             if (SubStore.remoteFrontendVersion != SubStore.localFrontendVersion) {
-                                SubStore.updateFrontend()
+                                updateSucceeded = SubStore.updateFrontend().isSuccess
                             }
                             if (SubStore.remoteBackendVersion != SubStore.localBackendVersion) {
-                                SubStore.updateBackend()
+                                updateSucceeded = SubStore.updateBackend().isSuccess && updateSucceeded
                             }
-                            isUpdating.value = false
+                            withContext(Dispatchers.Main) {
+                                isUpdating.value = false
+                                if (updateSucceeded) {
+                                    GlobalStatus.showUpdateDialog.value = false
+                                }
+                            }
                         }
                     },
                     colors = ButtonDefaults.textButtonColors(
@@ -589,5 +597,4 @@ fun FooterSpan() {
         }
     }
 }
-
 

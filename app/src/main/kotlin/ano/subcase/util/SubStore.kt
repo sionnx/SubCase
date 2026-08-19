@@ -1,6 +1,7 @@
 package ano.subcase.util
 
 import android.widget.Toast
+import androidx.compose.runtime.mutableStateOf
 import ano.subcase.GlobalStatus
 import ano.subcase.caseApp
 import ano.subcase.util.AppUtil.unzip
@@ -18,16 +19,20 @@ object SubStore {
 
     val basePath = caseApp.filesDir
 
+    private val localFrontendVersionState = mutableStateOf(ConfigStore.localFrontendVersion)
     var localFrontendVersion: String
-        get() = ConfigStore.localFrontendVersion
+        get() = localFrontendVersionState.value
         set(value) {
             ConfigStore.localFrontendVersion = value
+            localFrontendVersionState.value = value
         }
 
+    private val localBackendVersionState = mutableStateOf(ConfigStore.localBackendVersion)
     var localBackendVersion: String
-        get() = ConfigStore.localBackendVersion
+        get() = localBackendVersionState.value
         set(value) {
             ConfigStore.localBackendVersion = value
+            localBackendVersionState.value = value
         }
 
     var remoteFrontendVersion = ConfigStore.localFrontendVersion
@@ -109,7 +114,7 @@ object SubStore {
                     Paths.get(caseApp.filesDir.path + "/frontend")
                 )
 
-                ConfigStore.localFrontendVersion = remoteFrontendVersion
+                localFrontendVersion = remoteFrontendVersion
 
                 val msg = "Frontend updated to $remoteFrontendVersion"
                 Timber.d(msg)
@@ -160,7 +165,7 @@ object SubStore {
                 Paths.get(caseApp.filesDir.path + "/backend/sub-store.bundle.js")
             )
 
-            ConfigStore.localBackendVersion = remoteBackendVersion
+            localBackendVersion = remoteBackendVersion
 
             val msg = "Backend updated to ${remoteBackendVersion}"
             Timber.d(msg)
