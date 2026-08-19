@@ -25,3 +25,4 @@ jobs:
               debug/*.apk
               release/*.apk
               mappings/mapping.txt
+            fail_on_unmatched_files: true
