@@ -5,7 +5,6 @@ import com.caoccao.javet.enums.V8AwaitMode
 import com.caoccao.javet.interception.logging.JavetStandardConsoleInterceptor
 import com.caoccao.javet.interop.NodeRuntime
 import com.caoccao.javet.interop.V8Host
-import com.caoccao.javet.interop.V8Runtime
 import com.caoccao.javet.interop.options.NodeRuntimeOptions
 import timber.log.Timber
 import java.io.File
@@ -31,8 +30,6 @@ class CaseEngine(backendPort: Int, frontendPort: Int, allowLan: Boolean) {
     """.trimIndent()
 
     init {
-
-
         try {
             val nodeRuntimeOptions = NodeRuntimeOptions()
             nodeRuntimeOptions.setConsoleArguments(
