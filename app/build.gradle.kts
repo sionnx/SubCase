@@ -119,6 +119,7 @@ dependencies {
     implementation(libs.accompanist.systemuicontroller)
 
     implementation(libs.okhttp)
+    implementation(libs.jsoup)
 
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)

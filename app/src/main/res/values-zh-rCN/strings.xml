@@ -23,4 +23,15 @@
     <string name="check_sub_store_updates">检查 Sub Store 更新</string>
 
     <string name="notification_content">正在后台运行</string>
+
+    <string name="app_update_title">发现新版本 %1$s</string>
+    <string name="app_update_version">当前 %1$s · 最新 %2$s</string>
+    <string name="app_update_skip">跳过</string>
+    <string name="app_update_update">更新</string>
+    <string name="app_update_downloading">正在下载</string>
+    <string name="app_update_downloading_progress">正在下载 %1$d%%</string>
+    <string name="app_update_retry">重试</string>
+    <string name="app_update_open_settings">前往设置</string>
+    <string name="app_update_permission_required">请允许 SubCase 安装应用，返回后将继续安装。</string>
+    <string name="app_update_install_failed">无法打开系统安装器</string>
 </resources>

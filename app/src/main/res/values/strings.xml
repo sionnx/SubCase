@@ -23,4 +23,15 @@
     <string name="check_sub_store_updates">Check for Sub Store updates</string>
 
     <string name="notification_content">Is running in the background</string>
+
+    <string name="app_update_title">New version %1$s</string>
+    <string name="app_update_version">Current %1$s · Latest %2$s</string>
+    <string name="app_update_skip">Skip</string>
+    <string name="app_update_update">Update</string>
+    <string name="app_update_downloading">Downloading</string>
+    <string name="app_update_downloading_progress">Downloading %1$d%%</string>
+    <string name="app_update_retry">Retry</string>
+    <string name="app_update_open_settings">Open settings</string>
+    <string name="app_update_permission_required">Allow SubCase to install apps, then return to continue.</string>
+    <string name="app_update_install_failed">Unable to open the system installer</string>
 </resources>

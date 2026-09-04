@@ -11,7 +11,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.viewmodel.compose.viewModel
 import ano.subcase.GlobalStatus
+import ano.subcase.ui.components.StartupUpdateCoordinator
 import ano.subcase.ui.screens.HomeScreen
 import ano.subcase.ui.screens.SettingsScreen
 import ano.subcase.ui.theme.SubCaseTheme
@@ -32,6 +34,8 @@ class MainActivity : ComponentActivity() {
             SubCaseTheme {
                 val navController = rememberNavController()
                 SetupNavGraph(navController = navController)
+                val startupUpdateViewModel = viewModel<StartupUpdateViewModel>()
+                StartupUpdateCoordinator(startupUpdateViewModel)
             }
         }
 

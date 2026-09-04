@@ -57,55 +57,53 @@ object SubStore {
         onUpdateAvailable: () -> Unit,
         onFinished: () -> Unit = {}
     ) {
-        GlobalScope.launch(Dispatchers.IO) {
+        GlobalScope.launch(Dispatchers.Main) {
             try {
-                val backendResult = GithubUtil.getLatestVersion(REPO_BACKEND)
-                if (backendResult.isSuccess) {
-                    remoteBackendVersion = backendResult.getOrNull()!!
-                } else {
-                    Timber.e(backendResult.exceptionOrNull())
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            caseApp,
-                            "检测后端新版本失败,请检查您的网络环境",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-
-                val frontendResult = GithubUtil.getLatestVersion(REPO_FRONTEND)
-                if (frontendResult.isSuccess) {
-                    remoteFrontendVersion = frontendResult.getOrNull()!!
-                } else {
-                    Timber.e(frontendResult.exceptionOrNull())
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            caseApp,
-                            "检测前端新版本失败,请检查您的网络环境",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-
-                if ((remoteFrontendVersion.isNotEmpty() && remoteFrontendVersion != localFrontendVersion) || (remoteBackendVersion.isNotEmpty() && remoteBackendVersion != localBackendVersion)) {
-                    withContext(Dispatchers.Main) {
-                        onUpdateAvailable()
-                    }
-                } else if (frontendResult.isSuccess && backendResult.isSuccess && showToast) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            caseApp,
-                            "当前已是最新版本",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                if (checkLatestVersionAwait(showToast)) {
+                    onUpdateAvailable()
                 }
             } finally {
-                withContext(Dispatchers.Main) {
-                    onFinished()
-                }
+                onFinished()
             }
         }
+    }
+
+    suspend fun checkLatestVersionAwait(showToast: Boolean = false): Boolean {
+        val backendResult = withContext(Dispatchers.IO) {
+            GithubUtil.getLatestVersion(REPO_BACKEND)
+        }
+        if (backendResult.isSuccess) {
+            remoteBackendVersion = backendResult.getOrThrow()
+        } else {
+            Timber.e(backendResult.exceptionOrNull())
+            Toast.makeText(
+                caseApp,
+                "检测后端新版本失败,请检查您的网络环境",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        val frontendResult = withContext(Dispatchers.IO) {
+            GithubUtil.getLatestVersion(REPO_FRONTEND)
+        }
+        if (frontendResult.isSuccess) {
+            remoteFrontendVersion = frontendResult.getOrThrow()
+        } else {
+            Timber.e(frontendResult.exceptionOrNull())
+            Toast.makeText(
+                caseApp,
+                "检测前端新版本失败,请检查您的网络环境",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        val updateAvailable =
+            (remoteFrontendVersion.isNotEmpty() && remoteFrontendVersion != localFrontendVersion) ||
+                (remoteBackendVersion.isNotEmpty() && remoteBackendVersion != localBackendVersion)
+        if (!updateAvailable && frontendResult.isSuccess && backendResult.isSuccess && showToast) {
+            Toast.makeText(caseApp, "当前已是最新版本", Toast.LENGTH_SHORT).show()
+        }
+        return updateAvailable
     }
 
     @OptIn(DelicateCoroutinesApi::class)

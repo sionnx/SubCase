@@ -5,11 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -22,11 +18,9 @@ import ano.subcase.R
 import ano.subcase.ui.HomeViewModel
 import ano.subcase.ui.MainViewModel
 import ano.subcase.ui.components.HomePanel
-import ano.subcase.ui.components.SubStoreUpdateDialog
 import ano.subcase.ui.components.SubStoreWebView
 import ano.subcase.ui.components.buildSubStoreUrl
 import ano.subcase.util.ConfigStore
-import ano.subcase.util.SubStore
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -35,14 +29,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 fun HomeScreen(navController: NavController) {
     val mViewModel = viewModel<MainViewModel>()
     val homeViewModel = viewModel<HomeViewModel>()
-    var showSubStoreUpdateDialog by rememberSaveable { mutableStateOf(false) }
     val isServiceRunning = GlobalStatus.isServiceRunning.value
-
-    LaunchedEffect(Unit) {
-        SubStore.checkLatestVersionOnce {
-            showSubStoreUpdateDialog = true
-        }
-    }
 
     Scaffold(
         containerColor = MiuixTheme.colorScheme.background,
@@ -91,9 +78,4 @@ fun HomeScreen(navController: NavController) {
             )
         }
     }
-
-    SubStoreUpdateDialog(
-        show = showSubStoreUpdateDialog,
-        onDismiss = { showSubStoreUpdateDialog = false }
-    )
 }
