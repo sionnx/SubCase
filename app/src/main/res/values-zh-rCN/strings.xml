@@ -2,6 +2,11 @@
 <resources>
 
     <string name="service_status">服务状态</string>
+    <string name="start_service">启动服务</string>
+    <string name="stop_service">停止服务</string>
+    <string name="service_running">服务正在运行</string>
+    <string name="service_stopped">服务已停止</string>
+    <string name="sub_store_not_started">SubStore 尚未启动</string>
     <string name="frontend">前端</string>
     <string name="backend">后端</string>
     <string name="address">地址</string>
@@ -12,6 +17,10 @@
     <string name="version">版本</string>
 
     <string name="navigate_back">返回上一页</string>
+    <string name="settings">设置</string>
+    <string name="open_settings">打开设置</string>
+    <string name="open_sub_store_in_external_browser">在外部浏览器中打开 SubStore</string>
+    <string name="check_sub_store_updates">检查 Sub Store 更新</string>
 
     <string name="notification_content">正在后台运行</string>
 </resources>

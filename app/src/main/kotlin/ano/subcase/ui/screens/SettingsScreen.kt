@@ -1,4 +1,4 @@
-package ano.subcase.ui
+package ano.subcase.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,29 +9,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -52,23 +39,41 @@ import androidx.navigation.NavController
 import ano.subcase.BuildConfig
 import ano.subcase.GlobalStatus
 import ano.subcase.R
+import ano.subcase.ui.MainViewModel
+import ano.subcase.ui.components.SubStoreUpdateDialog
+import ano.subcase.ui.components.buildSubStoreUrl
 import ano.subcase.ui.theme.Blue
 import ano.subcase.ui.theme.switchColors
 import ano.subcase.util.ConfigStore
 import ano.subcase.util.SubStore
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
-fun MainScreen(navController: NavController) {
+fun SettingsScreen(navController: NavController) {
 
     val mViewModel = viewModel<MainViewModel>()
+    var showSubStoreUpdateDialog by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { MainTopBar(mViewModel) }
+        containerColor = MiuixTheme.colorScheme.background,
+        topBar = {
+            SettingsTopBar(
+                navController = navController,
+                onUpdateAvailable = { showSubStoreUpdateDialog = true }
+            )
+        }
     ) {
         Column(
             modifier = Modifier
@@ -78,8 +83,6 @@ fun MainScreen(navController: NavController) {
                 .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            ServerSwitch(mViewModel)
-            Spacer(modifier = Modifier.padding(10.dp))
             FrontEndCard(mViewModel)
             Spacer(modifier = Modifier.padding(10.dp))
             BackEndCard(mViewModel)
@@ -97,143 +100,12 @@ fun MainScreen(navController: NavController) {
             Spacer(modifier = Modifier.padding(10.dp))
             FooterSpan()
         }
-
-        if (GlobalStatus.showUpdateDialog.value) {
-            UpdateDialog()
-        }
     }
-}
 
-@OptIn(ExperimentalMaterial3Api::class, DelicateCoroutinesApi::class)
-@Composable
-fun UpdateDialog() {
-
-    var isUpdating = remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = {},
-        title = {
-            Text(text = "检测到 SubStore 有新版本", fontSize = 18.sp)
-        },
-        text = {
-            Column {
-                if (SubStore.remoteFrontendVersion != SubStore.localFrontendVersion) {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 5.dp)
-                    ) {
-                        Text("前端")
-                        Text("(${SubStore.localFrontendVersion} -> ${SubStore.remoteFrontendVersion})")
-                    }
-                }
-
-                if (SubStore.remoteBackendVersion != SubStore.localBackendVersion) {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 10.dp)
-                    ) {
-                        Text("后端")
-                        Text("(${SubStore.localBackendVersion} -> ${SubStore.remoteBackendVersion})")
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    modifier = Modifier.clickable {
-                        if (isUpdating.value) {
-                            return@clickable
-                        }
-                        GlobalStatus.showUpdateDialog.value = false
-                    },
-                    color = Color.Gray,
-                    text = "取消",
-                )
-                Spacer(modifier = Modifier.padding(10.dp))
-                TextButton(
-                    onClick = {
-                        if (isUpdating.value) {
-                            return@TextButton
-                        }
-                        isUpdating.value = true
-                        GlobalScope.launch {
-                            var updateSucceeded = true
-                            if (SubStore.remoteFrontendVersion != SubStore.localFrontendVersion) {
-                                updateSucceeded = SubStore.updateFrontend().isSuccess
-                            }
-                            if (SubStore.remoteBackendVersion != SubStore.localBackendVersion) {
-                                updateSucceeded = SubStore.updateBackend().isSuccess && updateSucceeded
-                            }
-                            withContext(Dispatchers.Main) {
-                                isUpdating.value = false
-                                if (updateSucceeded) {
-                                    GlobalStatus.showUpdateDialog.value = false
-                                }
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = Color.White,
-                        containerColor = Blue
-                    )
-                ) {
-                    Text("更新")
-                }
-            }
-        },
+    SubStoreUpdateDialog(
+        show = showSubStoreUpdateDialog,
+        onDismiss = { showSubStoreUpdateDialog = false }
     )
-}
-
-@Composable
-fun ServerSwitch(mViewModel: MainViewModel) {
-    val haptic = LocalHapticFeedback.current
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                stringResource(R.string.service_status),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Switch(
-                checked = GlobalStatus.isServiceRunning.value,
-                onCheckedChange = {
-                    haptic.performHapticFeedback(
-                        HapticFeedbackType.TextHandleMove
-                    )
-
-                    ConfigStore.isServiceRunning = it
-
-
-                    if (it) {
-                        mViewModel.startService()
-                    } else {
-                        mViewModel.stopService()
-                    }
-
-                },
-                colors = switchColors(),
-                modifier = Modifier.scale(0.9f)
-            )
-        }
-    }
 }
 
 @Composable
@@ -253,10 +125,12 @@ fun FrontEndCard(mViewModel: MainViewModel) {
         )
     }
 
+    Spacer(modifier = Modifier.height(3.dp))
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+        colors = CardDefaults.defaultColors(
+            color = MiuixTheme.colorScheme.surface
         )
     ) {
         Column {
@@ -272,12 +146,8 @@ fun FrontEndCard(mViewModel: MainViewModel) {
                     stringResource(R.string.address),
                 )
 
-                val host: String
-                if (mViewModel.allowLan) {
-                    host = GlobalStatus.lanIP.value
-                } else {
-                    host = "127.0.0.1"
-                }
+                // 局域网模式对外暴露真实地址，本机模式固定使用回环地址。
+                val host = if (mViewModel.allowLan) GlobalStatus.lanIP.value else "127.0.0.1"
 
                 Text(
                     "http://${host}:8080",
@@ -320,7 +190,6 @@ fun FrontEndCard(mViewModel: MainViewModel) {
 
 @Composable
 fun BackEndCard(mViewModel: MainViewModel) {
-    val haptic = LocalHapticFeedback.current
     val urlHandler = LocalUriHandler.current
 
     Row(
@@ -331,15 +200,17 @@ fun BackEndCard(mViewModel: MainViewModel) {
     ) {
         Text(
             stringResource(R.string.backend),
-            color = MaterialTheme.colorScheme.onBackground,
+            color = MiuixTheme.colorScheme.onBackground,
             fontSize = 14.sp
         )
     }
 
+    Spacer(modifier = Modifier.height(3.dp))
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+        colors = CardDefaults.defaultColors(
+            color = MiuixTheme.colorScheme.surface
         )
     ) {
         Column {
@@ -403,12 +274,10 @@ fun BackEndCard(mViewModel: MainViewModel) {
 
 @Composable
 fun AllowLanSpan(mViewModel: MainViewModel) {
-    val haptic = LocalHapticFeedback.current
-
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+        colors = CardDefaults.defaultColors(
+            color = MiuixTheme.colorScheme.surface
         )
     ) {
         Row(
@@ -426,10 +295,6 @@ fun AllowLanSpan(mViewModel: MainViewModel) {
             Switch(
                 checked = mViewModel.allowLan,
                 onCheckedChange = {
-                    haptic.performHapticFeedback(
-                        HapticFeedbackType.TextHandleMove
-                    )
-
                     mViewModel.allowLan = it
                     ConfigStore.isAllowLan = it
                 },
@@ -442,12 +307,10 @@ fun AllowLanSpan(mViewModel: MainViewModel) {
 
 @Composable
 fun AllowCrashReport(mViewModel: MainViewModel) {
-    val haptic = LocalHapticFeedback.current
-
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+        colors = CardDefaults.defaultColors(
+            color = MiuixTheme.colorScheme.surface
         )
     ) {
         Row(
@@ -465,10 +328,6 @@ fun AllowCrashReport(mViewModel: MainViewModel) {
             Switch(
                 checked = mViewModel.allowCrashReport,
                 onCheckedChange = {
-                    haptic.performHapticFeedback(
-                        HapticFeedbackType.TextHandleMove
-                    )
-
                     mViewModel.allowCrashReport = it
                     ConfigStore.isAllowCrashReport = it
                 },
@@ -512,60 +371,70 @@ fun AllowLanHint() {
 
 @Composable
 fun OpenSubStore(mViewModel: MainViewModel) {
-
-    val host: String
-    if (mViewModel.allowLan) {
-        host = GlobalStatus.lanIP.value
-    } else {
-        host = "127.0.0.1"
-    }
+    val subStoreUrl = buildSubStoreUrl(
+        allowLan = mViewModel.allowLan,
+        lanIp = GlobalStatus.lanIP.value,
+    )
 
     val urlHandler = LocalUriHandler.current
 
     TextButton(
+        text = stringResource(R.string.open_sub_store_in_external_browser),
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 10.dp, top = 5.dp),
-        content = {
-            Text("打开SubStore")
-        },
         onClick = {
-            urlHandler.openUri("http://${host}:8080/subs?api=http://${host}:8081")
+            urlHandler.openUri(subStoreUrl)
         },
-        colors = ButtonDefaults.textButtonColors(
-            contentColor = Color.White,
-            containerColor = Blue
-        )
+        colors = ButtonDefaults.textButtonColorsPrimary()
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainTopBar(mViewModel: MainViewModel) {
-    val hapic = LocalHapticFeedback.current
+fun SettingsTopBar(
+    navController: NavController,
+    onUpdateAvailable: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    var isCheckingUpdate by rememberSaveable { mutableStateOf(false) }
 
-    CenterAlignedTopAppBar(
-        modifier = Modifier.systemBarsPadding(),
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Transparent
-        ),
-        title = {
-            Text(
-                text = stringResource(id = R.string.app_name),
-            )
+    // SmallTopAppBar 内建系统栏 Insets，为边到边布局提供安全间距。
+    SmallTopAppBar(
+        title = stringResource(id = R.string.settings),
+        color = Color.Transparent,
+        navigationIcon = {
+            IconButton(onClick = { navController.popBackStack() }) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = stringResource(R.string.navigate_back)
+                )
+            }
         },
         actions = {
             IconButton(
+                enabled = !isCheckingUpdate,
                 onClick = {
-                    hapic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    SubStore.checkLatestVersion(showToast = true)
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    isCheckingUpdate = true
+                    SubStore.checkLatestVersion(
+                        showToast = true,
+                        onUpdateAvailable = onUpdateAvailable,
+                        onFinished = { isCheckingUpdate = false }
+                    )
                 },
             ) {
-                Icon(
-                    Icons.Outlined.Refresh,
-                    contentDescription = "检查 Sub Store 更新",
-                    modifier = Modifier.size(24.dp)
-                )
+                if (isCheckingUpdate) {
+                    CircularProgressIndicator(
+                        size = 20.dp,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        Icons.Outlined.Refresh,
+                        contentDescription = stringResource(R.string.check_sub_store_updates),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         },
     )

@@ -2,5 +2,6 @@
 <resources>
     <style name="Theme.SubCase" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:isLightTheme">true</item>
+        <item name="android:windowBackground">@color/splash_screen_background</item>
     </style>
 </resources>

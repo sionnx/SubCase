@@ -2,7 +2,6 @@ package ano.subcase.util
 
 import android.widget.Toast
 import androidx.compose.runtime.mutableStateOf
-import ano.subcase.GlobalStatus
 import ano.subcase.caseApp
 import ano.subcase.util.AppUtil.unzip
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -38,46 +37,70 @@ object SubStore {
     var remoteFrontendVersion = ConfigStore.localFrontendVersion
     var remoteBackendVersion = ConfigStore.localBackendVersion
 
+    private var hasCheckedLatestVersion = false
+
+    @Synchronized
+    fun checkLatestVersionOnce(onUpdateAvailable: () -> Unit) {
+        if (hasCheckedLatestVersion) {
+            return
+        }
+
+        hasCheckedLatestVersion = true
+        checkLatestVersion(onUpdateAvailable = onUpdateAvailable)
+    }
+
     @OptIn(DelicateCoroutinesApi::class)
-    fun checkLatestVersion(showToast: Boolean = false) {
-        GlobalScope.launch {
-            val backendResult = GithubUtil.getLatestVersion(REPO_BACKEND)
-            if (backendResult.isSuccess) {
-                remoteBackendVersion = backendResult.getOrNull()!!
-            } else {
-                Timber.e(backendResult.exceptionOrNull())
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        caseApp,
-                        "检测后端新版本失败,请检查您的网络环境",
-                        Toast.LENGTH_SHORT
-                    ).show()
+    fun checkLatestVersion(
+        showToast: Boolean = false,
+        onUpdateAvailable: () -> Unit,
+        onFinished: () -> Unit = {}
+    ) {
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val backendResult = GithubUtil.getLatestVersion(REPO_BACKEND)
+                if (backendResult.isSuccess) {
+                    remoteBackendVersion = backendResult.getOrNull()!!
+                } else {
+                    Timber.e(backendResult.exceptionOrNull())
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            caseApp,
+                            "检测后端新版本失败,请检查您的网络环境",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
-            }
 
-            val frontendResult = GithubUtil.getLatestVersion(REPO_FRONTEND)
-            if (frontendResult.isSuccess) {
-                remoteFrontendVersion = frontendResult.getOrNull()!!
-            } else {
-                Timber.e(frontendResult.exceptionOrNull())
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        caseApp,
-                        "检测前端新版本失败,请检查您的网络环境",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                val frontendResult = GithubUtil.getLatestVersion(REPO_FRONTEND)
+                if (frontendResult.isSuccess) {
+                    remoteFrontendVersion = frontendResult.getOrNull()!!
+                } else {
+                    Timber.e(frontendResult.exceptionOrNull())
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            caseApp,
+                            "检测前端新版本失败,请检查您的网络环境",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
-            }
 
-            if ((remoteFrontendVersion.isNotEmpty() && remoteFrontendVersion != localFrontendVersion) || (remoteBackendVersion.isNotEmpty() && remoteBackendVersion != localBackendVersion)) {
-                GlobalStatus.showUpdateDialog.value = true
-            } else if (frontendResult.isSuccess && backendResult.isSuccess && showToast) {
+                if ((remoteFrontendVersion.isNotEmpty() && remoteFrontendVersion != localFrontendVersion) || (remoteBackendVersion.isNotEmpty() && remoteBackendVersion != localBackendVersion)) {
+                    withContext(Dispatchers.Main) {
+                        onUpdateAvailable()
+                    }
+                } else if (frontendResult.isSuccess && backendResult.isSuccess && showToast) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            caseApp,
+                            "当前已是最新版本",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } finally {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        caseApp,
-                        "当前已是最新版本",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    onFinished()
                 }
             }
         }
