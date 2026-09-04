@@ -10,7 +10,6 @@ import java.util.zip.ZipInputStream
 
 object AppUtil {
     fun initFirstOpen() {
-        extractBackendFile()
         extractFrontendDist()
         createDataDir()
     }
@@ -23,28 +22,8 @@ object AppUtil {
         }
     }
 
-    private fun extractBackendFile() {
-        SubStore.localBackendVersion = "2.19.13"
-
-        val assetManager = caseApp.assets
-
-        //mkdir scripts
-        val scriptsDir = caseApp.filesDir.path + "/backend"
-        val scriptsDirFile = File(scriptsDir)
-        if (!scriptsDirFile.exists()) {
-            scriptsDirFile.mkdirs()
-        }
-
-        var inputStream = assetManager.open("backend/sub-store.bundle.js")
-        var dataFile = caseApp.filesDir.path + "/backend" + "/sub-store.bundle.js"
-        var outputStream = FileOutputStream(dataFile)
-        inputStream.copyTo(outputStream)
-        inputStream.close()
-        outputStream.close()
-    }
-
     private fun extractFrontendDist() {
-        SubStore.localFrontendVersion = "2.15.12"
+        SubStore.localFrontendVersion = "2.31.2"
 
         val assetManager = caseApp.assets
 

@@ -3,6 +3,8 @@ package ano.subcase.util
 import android.widget.Toast
 import androidx.compose.runtime.mutableStateOf
 import ano.subcase.caseApp
+import ano.subcase.engine.BackendFiles
+import ano.subcase.engine.BackendScriptValidator
 import ano.subcase.util.AppUtil.unzip
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -172,39 +174,71 @@ object SubStore {
             ).show()
         }
 
-        // Start download backend
-        val backendScript = GithubUtil.downloadFile(
-            REPO_BACKEND,
-            remoteBackendVersion,
-            "sub-store.bundle.js",
-            caseApp.filesDir.absolutePath
-        )
+        if (remoteBackendVersion == localBackendVersion) return Result.success(Unit)
+        if (!BackendFiles.isSafeVersion(remoteBackendVersion)) {
+            return Result.failure(IllegalArgumentException("无效的后端版本号"))
+        }
 
-        if (backendScript.isSuccess) {
-            Files.deleteIfExists(Paths.get(caseApp.filesDir.path + "/backend/sub-store.bundle.js"))
+        val result = withContext(Dispatchers.IO) {
+            runCatching {
+                val cacheDirectory = File(
+                    caseApp.cacheDir,
+                    "substore-update-$remoteBackendVersion",
+                )
+                cacheDirectory.deleteRecursively()
+                check(cacheDirectory.mkdirs()) { "无法创建后端更新缓存目录" }
+                try {
+                    for (scriptName in BackendFiles.SCRIPT_NAMES) {
+                        GithubUtil.downloadFile(
+                            REPO_BACKEND,
+                            remoteBackendVersion,
+                            scriptName,
+                            cacheDirectory.absolutePath,
+                        ).getOrThrow()
+                    }
+                    check(BackendFiles.hasScripts(cacheDirectory)) { "下载的后端脚本不完整" }
+                    BackendScriptValidator.validate(cacheDirectory).getOrThrow()
+                    cacheDirectory.listFiles()
+                        ?.filter { it.name !in BackendFiles.SCRIPT_NAMES }
+                        ?.forEach(File::deleteRecursively)
+                    check(
+                        cacheDirectory.listFiles()?.map(File::getName)?.toSet() ==
+                            BackendFiles.SCRIPT_NAMES.toSet(),
+                    ) { "后端更新缓存包含非正式文件" }
 
-            Files.move(
-                Paths.get(caseApp.filesDir.path + "/sub-store.bundle.js"),
-                Paths.get(caseApp.filesDir.path + "/backend/sub-store.bundle.js")
-            )
+                    val target = File(caseApp.filesDir, "backend/$remoteBackendVersion")
+                    target.deleteRecursively()
+                    target.parentFile?.mkdirs()
+                    Files.move(cacheDirectory.toPath(), target.toPath())
 
-            localBackendVersion = remoteBackendVersion
+                    // 更新判定只使用 release version；激活过程不生成或比较摘要。
+                    localBackendVersion = remoteBackendVersion
+                    File(caseApp.filesDir, "backend").listFiles()
+                        ?.filter {
+                            it.isDirectory &&
+                                it.name != localBackendVersion &&
+                                BackendFiles.hasScripts(it)
+                        }
+                        ?.forEach(File::deleteRecursively)
+                    Unit
+                } finally {
+                    cacheDirectory.deleteRecursively()
+                }
+            }
+        }
 
-            val msg = "Backend updated to ${remoteBackendVersion}"
+        result.onSuccess {
+            val msg = "Backend updated to $remoteBackendVersion"
             Timber.d(msg)
             withContext(Dispatchers.Main) {
                 Toast.makeText(caseApp, msg, Toast.LENGTH_SHORT).show()
             }
-
-            return Result.success(Unit)
-        } else {
-            Timber.w("后端文件下载失败,请检查网络环境")
+        }.onFailure { error ->
+            Timber.e(error, "后端更新失败")
             withContext(Dispatchers.Main) {
-                Toast.makeText(caseApp, "后端文件下载失败,请检查网络环境", Toast.LENGTH_SHORT)
-                    .show()
+                Toast.makeText(caseApp, "后端文件更新失败,请检查网络环境", Toast.LENGTH_SHORT).show()
             }
-
-            return Result.failure(Exception("Failed to download backend"))
         }
+        return result
     }
 }

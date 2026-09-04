@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import ano.subcase.caseApp
 import ano.subcase.service.SubStoreService
-import ano.subcase.util.ConfigStore
 import timber.log.Timber
 
 class NotificationReceiver : BroadcastReceiver() {
@@ -14,6 +13,5 @@ class NotificationReceiver : BroadcastReceiver() {
 
         val serviceIntent = Intent(caseApp, SubStoreService::class.java)
         caseApp.stopService(serviceIntent)
-        ConfigStore.isServiceRunning = false
     }
 }

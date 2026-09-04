@@ -8,11 +8,6 @@ A Powerful Wrapper for [SubStore](https://github.com/sub-store-org/Sub-Store) on
 <img src="https://github.com/user-attachments/assets/369af4cd-9699-4c40-ba46-7e37085ee891" width="250" >
 
 ## Features
-
 1. no need root permission.
 2. easy to use.
 
-## Used Library
-
-1. [Javet](https://github.com/caoccao/Javet)
-2. [Okhttp](https://github.com/square/okhttp)

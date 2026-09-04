@@ -4,8 +4,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import timber.log.Timber
 import java.io.File
-import java.nio.file.Files
-import kotlin.io.path.Path
 
 const val REPO_BACKEND = "https://github.com/sub-store-org/Sub-Store"
 const val REPO_FRONTEND = "https://github.com/sub-store-org/Sub-Store-Front-End"
@@ -37,7 +35,7 @@ object GithubUtil {
         }
     }
 
-    suspend fun downloadFile(
+    fun downloadFile(
         projectUrl: String,
         version: String,
         fileName: String,
@@ -47,18 +45,19 @@ object GithubUtil {
             // get download url
             val fileRequest =
                 Request.Builder().url("$projectUrl/releases/download/$version/$fileName").build()
-            val fileResponse = client.newCall(fileRequest).execute()
+            client.newCall(fileRequest).execute().use { fileResponse ->
+                if (!fileResponse.isSuccessful) {
+                    Timber.d("Failed to download file, response Code: ${fileResponse.code}")
+                    return Result.failure(Exception("Failed to download file"))
+                }
 
-            if (!fileResponse.isSuccessful) {
-                Timber.d("Failed to download file, response Code: ${fileResponse.code}")
-                return Result.failure(Exception("Failed to download file"))
-            }
-
-            // download file
-            val file = File(destPath + File.separator + fileName)
-            file.outputStream().use { output ->
-                fileResponse.body?.byteStream()?.use { input ->
-                    input.copyTo(output)
+                // 下载目标由调用方指定；后端更新目标固定在 cacheDir。
+                val file = File(destPath, fileName)
+                file.parentFile?.mkdirs()
+                file.outputStream().use { output ->
+                    fileResponse.body.byteStream().use { input ->
+                        input.copyTo(output)
+                    }
                 }
             }
             return Result.success("")
@@ -68,10 +67,4 @@ object GithubUtil {
         }
     }
 
-    fun renameFile(path: String, oldName: String, newName: String) {
-        val oldPath = Path("$path/$oldName")
-        val newPath = Path("$path/$newName")
-
-        Files.move(oldPath, newPath)
-    }
 }

@@ -1,99 +1,82 @@
 package ano.subcase.engine
 
-import ano.subcase.caseApp
-import com.caoccao.javet.enums.V8AwaitMode
-import com.caoccao.javet.interception.logging.JavetStandardConsoleInterceptor
-import com.caoccao.javet.interop.NodeRuntime
-import com.caoccao.javet.interop.V8Host
-import com.caoccao.javet.interop.options.NodeRuntimeOptions
-import timber.log.Timber
+import android.content.Context
+import android.os.Looper
+import ano.subcase.model.LoonRequest
+import ano.subcase.model.LoonResponse
+import ano.subcase.model.SubStoreScript
+import ano.subcase.server.SubCaseHttpServer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import java.io.File
-import kotlin.io.path.Path
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
-class CaseEngine(backendPort: Int, frontendPort: Int, allowLan: Boolean) {
+/** 协调两个 Ktor 服务，并为每个后端请求创建独立 WebView。 */
+class CaseEngine(
+    private val context: Context,
+    private val backendPort: Int,
+    private val frontendPort: Int,
+    allowLan: Boolean,
+) {
     val host = if (allowLan) "0.0.0.0" else "127.0.0.1"
-
-    private var nodeRuntime: NodeRuntime? = null
-    private lateinit var thread: Thread
-
-    private var shouldAwait = true
-
-    private val argv2EnvScript = """
-        process.argv.slice(2).forEach(arg => {
-          if (arg.startsWith('--SUB_STORE')) {
-            const [key, value] = arg.slice(2).split('=');
-            if (key && value !== undefined) {
-              process.env[key] = value;
-            }
-          }
-        });
-    """.trimIndent()
+    private val backendDir: File
+    private var httpServer: SubCaseHttpServer? = null
 
     init {
-        try {
-            val nodeRuntimeOptions = NodeRuntimeOptions()
-            nodeRuntimeOptions.setConsoleArguments(
-                arrayOf(
-                    "--allow-fs-read",
-                    "--allow-fs-write",
-
-                    // Front end
-                    "--SUB_STORE_FRONTEND_HOST=$host",
-                    "--SUB_STORE_FRONTEND_PORT=$frontendPort",
-                    "--SUB_STORE_FRONTEND_PATH=${Path(caseApp.filesDir.path).resolve("frontend")}",
-
-                    // Back end
-                    "--SUB_STORE_BACKEND_API_HOST=$host",
-                    "--SUB_STORE_BACKEND_API_PORT=$backendPort",
-
-                    // Database
-                    "--SUB_STORE_DATA_BASE_PATH=${Path(caseApp.filesDir.path).resolve("data")}",
-                )
-            )
-
-            nodeRuntime = V8Host.getNodeInstance().createV8Runtime(nodeRuntimeOptions)
-
-            // register console interceptor
-            val javetStandardConsoleInterceptor = JavetStandardConsoleInterceptor(nodeRuntime)
-            javetStandardConsoleInterceptor.register(nodeRuntime!!.globalObject)
-
-            // allow eval
-            nodeRuntime!!.allowEval(true)
-
-            // set env
-            nodeRuntime!!.getExecutor(argv2EnvScript).executeVoid()
-
-        } catch (e: Exception) {
-            Timber.w("Create V8Runtime error: %s", e.message)
-        }
+        check(Looper.myLooper() == Looper.getMainLooper()) { "CaseEngine 必须在主线程创建" }
+        backendDir = BackendFiles.directory(context)
     }
 
     fun startServer() {
-        val codeFile: File =
-            Path(caseApp.filesDir.path).resolve("backend/sub-store.bundle.js").toFile()
-
-        Thread {
-            try {
-                nodeRuntime!!.getExecutor(codeFile).executeVoid()
-                while (shouldAwait) {
-                    nodeRuntime!!.await(V8AwaitMode.RunNoWait)
-                }
-            } catch (e: Exception) {
-                Timber.e(e)
-            }
-
-            nodeRuntime!!.isStopping = true
-            nodeRuntime!!.close()
-        }.start()
+        check(httpServer == null) { "Sub-Store server 已启动" }
+        httpServer = SubCaseHttpServer(
+            host = host,
+            frontendPort = frontendPort,
+            backendPort = backendPort,
+            frontendDir = File(context.filesDir, "frontend"),
+            execute = ::execute,
+        ).also { it.start() }
     }
 
     fun stopServer() {
-        try {
-            shouldAwait = false
-            nodeRuntime!!.terminateExecution()
-            Timber.d("Server stopped")
-        } catch (e: Exception) {
-            Timber.e(e)
+        check(Looper.myLooper() == Looper.getMainLooper()) { "CaseEngine 必须在主线程停止" }
+        httpServer?.stop()
+        httpServer = null
+    }
+
+    private suspend fun execute(request: LoonRequest): LoonResponse {
+        val origin = request.headers.entries
+            .firstOrNull { it.key.equals("Origin", ignoreCase = true) }
+            ?.value
+            ?: "http://127.0.0.1:$frontendPort"
+        val argument = "cors=" + URLEncoder.encode(origin, StandardCharsets.UTF_8.name())
+        var executor: ScriptWebView? = null
+        return try {
+            withContext(Dispatchers.Main.immediate) {
+                executor = if (SubStoreScriptRouter.select(request.url) == SubStoreScript.CORE) {
+                    CoreScriptWebView(context, backendDir)
+                } else {
+                    SimpleScriptWebView(context, backendDir)
+                }
+            }
+            checkNotNull(executor).execute(request, argument)
+        } finally {
+            executor?.let {
+                withContext(NonCancellable + Dispatchers.Main.immediate) {
+                    it.close()
+                }
+            }
         }
     }
+}
+
+/** 保持与 Loon http-request 规则一致的脚本选择器。 */
+internal object SubStoreScriptRouter {
+    private val coreRequestPattern =
+        Regex("""^https?://sub\.store/((download)|api/(preview|sync|(utils/node-info)))""")
+
+    fun select(url: String): SubStoreScript =
+        if (coreRequestPattern.containsMatchIn(url)) SubStoreScript.CORE else SubStoreScript.SIMPLE
 }

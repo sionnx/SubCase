@@ -120,7 +120,8 @@ dependencies {
 
     implementation(libs.okhttp)
 
-    implementation(libs.javet.node.android)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.cio)
 
     // Google Firebase Crashlytics
     implementation(platform(libs.firebase.bom))

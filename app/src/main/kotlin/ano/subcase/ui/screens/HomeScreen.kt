@@ -78,7 +78,6 @@ fun HomeScreen(navController: NavController) {
                 isServiceRunning = isServiceRunning,
                 onSettingsClick = { navController.navigate("settings_screen") },
                 onToggleService = {
-                    ConfigStore.isServiceRunning = !isServiceRunning
                     if (isServiceRunning) {
                         mViewModel.stopService()
                     } else {

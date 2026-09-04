@@ -12,7 +12,12 @@
 #   public *;
 #}
 
--keep class com.caoccao.javet.** { *; }
+-keepclassmembers class ano.subcase.engine.bridge.** {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Ktor 仅在 JVM 调试器探测分支引用 java.lang.management，Android 运行时不会进入该分支。
+-dontwarn java.lang.management.**
 
 # Uncomment this to preserve the line number information for
 # debugging stack traces.

@@ -83,6 +83,7 @@ fun SettingsScreen(navController: NavController) {
                 .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.padding(10.dp))
             FrontEndCard(mViewModel)
             Spacer(modifier = Modifier.padding(10.dp))
             BackEndCard(mViewModel)

@@ -14,7 +14,9 @@ import ano.subcase.receiver.NotificationReceiver
 import ano.subcase.R
 import ano.subcase.caseApp
 import ano.subcase.service.SubStoreService
+import ano.subcase.ui.MainActivity
 import ano.subcase.ui.caseActivity
+import java.util.concurrent.atomic.AtomicInteger
 
 object NotificationUtil {
 
@@ -39,7 +41,7 @@ object NotificationUtil {
     private val contentIntent = PendingIntent.getActivity(
         caseApp,
         0,
-        Intent(caseApp, caseActivity::class.java),
+        Intent(caseApp, MainActivity::class.java),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
     )
 
@@ -65,19 +67,31 @@ object NotificationUtil {
     }
 
     fun startNotification(subStoreService: SubStoreService) {
-        if (ActivityCompat.checkSelfPermission(
-                caseApp,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
-
+        // 前台服务必须立即调用 startForeground；通知权限只影响抽屉中的展示。
         subStoreService.startForeground(1, notificationBuilder)
     }
 
     fun stopNotification() {
         NotificationManagerCompat.from(caseApp).cancel(1)
+    }
+
+    /** 将 Loon `$notification.post()` 转发为 Android 通知。 */
+    fun postScriptNotification(title: String, subtitle: String, content: String) {
+        if (ActivityCompat.checkSelfPermission(
+                caseApp,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) return
+        val text = listOf(subtitle, content).filter(String::isNotBlank).joinToString("\n")
+        val notification = NotificationCompat.Builder(caseApp, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_server)
+            .setContentTitle(title.ifBlank { caseApp.getString(R.string.app_name) })
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(contentIntent)
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(caseApp).notify(notificationIds.incrementAndGet(), notification)
     }
 
     fun checkAndRequestPermission() {
@@ -95,4 +109,6 @@ object NotificationUtil {
             }
         }
     }
+
+    private val notificationIds = AtomicInteger(1_000)
 }
