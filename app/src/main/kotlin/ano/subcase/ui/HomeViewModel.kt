@@ -16,7 +16,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun acquireWebView(context: Context): WebView {
         webViewContext.baseContext = context
 
-        return (retainedWebView ?: WebView(webViewContext).also { retainedWebView = it })
+        return (retainedWebView ?: WebView(webViewContext).also { webView ->
+            // WRAP_CONTENT makes WebView use a zero-height CSS viewport, even when
+            // Compose measures the AndroidView with an exact, nonzero height.
+            webView.layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            retainedWebView = webView
+        })
             .also { webView ->
                 (webView.parent as? ViewGroup)?.removeView(webView)
                 webView.onResume()

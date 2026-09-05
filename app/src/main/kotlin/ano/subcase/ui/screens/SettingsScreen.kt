@@ -1,5 +1,6 @@
 package ano.subcase.ui.screens
 
+import android.webkit.WebView
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -450,6 +451,18 @@ fun FooterSpan() {
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        val webViewPackage = WebView.getCurrentWebViewPackage()
+        val webViewVersion = webViewPackage?.versionName ?: "unavailable"
+        val webViewChannel = webViewChannel(webViewPackage?.packageName)
+        Text(
+            "WebView($webViewChannel.$webViewVersion)",
+            color = Color.Gray,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp,
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
         Text(
             "v" + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")",
             color = Color.Gray,
@@ -468,5 +481,16 @@ fun FooterSpan() {
                 tint = Color.Gray,
             )
         }
+    }
+}
+
+/** 根据当前 WebView 提供方包名判断渠道。 */
+internal fun webViewChannel(packageName: String?): String {
+    if (packageName == null) return "unavailable"
+    return when (packageName.substringAfterLast('.')) {
+        "beta" -> "beta"
+        "dev" -> "dev"
+        "canary" -> "canary"
+        else -> "stable"
     }
 }
