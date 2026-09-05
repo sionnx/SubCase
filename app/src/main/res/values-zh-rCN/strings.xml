@@ -34,4 +34,9 @@
     <string name="app_update_open_settings">前往设置</string>
     <string name="app_update_permission_required">请允许 SubCase 安装应用，返回后将继续安装。</string>
     <string name="app_update_install_failed">无法打开系统安装器</string>
+    <string name="notification_permission_title">开启通知权限</string>
+    <string name="notification_permission_description">SubCase 通过 Android 前台服务来保证后台运行,因此通知权限为必需权限</string>
+    <string name="notification_permission_continue">继续授权</string>
+    <string name="notification_permission_settings">前往设置</string>
+    <string name="notification_permission_failed">无法打开通知授权页面，请重试。</string>
 </resources>

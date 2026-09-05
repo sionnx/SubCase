@@ -34,4 +34,9 @@
     <string name="app_update_open_settings">Open settings</string>
     <string name="app_update_permission_required">Allow SubCase to install apps, then return to continue.</string>
     <string name="app_update_install_failed">Unable to open the system installer</string>
+    <string name="notification_permission_title">Enable notifications</string>
+    <string name="notification_permission_description">SubCase uses an Android foreground service to ensure background operation, so notification permission is required.</string>
+    <string name="notification_permission_continue">Continue</string>
+    <string name="notification_permission_settings">Open settings</string>
+    <string name="notification_permission_failed">Unable to open notification authorization. Please try again.</string>
 </resources>

@@ -18,7 +18,7 @@ import ano.subcase.ui.screens.HomeScreen
 import ano.subcase.ui.screens.SettingsScreen
 import ano.subcase.ui.theme.SubCaseTheme
 import ano.subcase.util.NetworkUtil
-import ano.subcase.util.NotificationUtil
+import ano.subcase.ui.components.NotificationPermissionGate
 
 lateinit var caseActivity: MainActivity
 
@@ -32,17 +32,16 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SubCaseTheme {
-                val navController = rememberNavController()
-                SetupNavGraph(navController = navController)
-                val startupUpdateViewModel = viewModel<StartupUpdateViewModel>()
-                StartupUpdateCoordinator(startupUpdateViewModel)
+                NotificationPermissionGate(activity = this@MainActivity) {
+                    val navController = rememberNavController()
+                    SetupNavGraph(navController = navController)
+                    val startupUpdateViewModel = viewModel<StartupUpdateViewModel>()
+                    StartupUpdateCoordinator(startupUpdateViewModel)
+                }
             }
         }
 
         GlobalStatus.lanIP.value = NetworkUtil.getLanIp() ?: ""
-
-        // prepare notification
-        NotificationUtil.checkAndRequestPermission()
 
         // prepare network
         NetworkUtil.startObserve()

@@ -12,6 +12,8 @@ import ano.subcase.util.PreferencesKeys.FRONTEND_LOCAL_VER
 import ano.subcase.util.PreferencesKeys.LEGACY_NODE_MIGRATED
 
 object PreferencesKeys {
+    const val NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested"
+
     const val APP_IS_FIRST_OPEN = "app_first_open"
 
     const val ALLOW_LAN = "allow_lan"
@@ -32,6 +34,12 @@ object ConfigStore {
         }
         return prefs!!
     }
+
+    var notificationPermissionRequested: Boolean
+        get() = getInstance().getBoolean(PreferencesKeys.NOTIFICATION_PERMISSION_REQUESTED, false)
+        set(value) {
+            getInstance().edit { putBoolean(PreferencesKeys.NOTIFICATION_PERMISSION_REQUESTED, value) }
+        }
 
     var isFirstOpen: Boolean
         get() = getInstance().getBoolean(APP_IS_FIRST_OPEN, true)
