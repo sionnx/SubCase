@@ -1,6 +1,5 @@
 package ano.subcase.ui.screens
 
-import android.webkit.WebView
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -446,23 +445,14 @@ fun SettingsTopBar(
 @Composable
 fun FooterSpan() {
     val uriHandler = LocalUriHandler.current
+    val iconButtonSize = 36.dp
+    val iconSize = 18.dp
+    val iconSpacing = -(iconButtonSize - iconSize) / 2
 
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        val webViewPackage = WebView.getCurrentWebViewPackage()
-        val webViewVersion = webViewPackage?.versionName ?: "unavailable"
-        val webViewChannel = webViewChannel(webViewPackage?.packageName)
-        Text(
-            "WebView($webViewChannel.$webViewVersion)",
-            color = Color.Gray,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
         Text(
             "v" + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")",
             color = Color.Gray,
@@ -470,27 +460,37 @@ fun FooterSpan() {
             fontSize = 14.sp,
         )
 
-        IconButton(
-            onClick = {
-                uriHandler.openUri("https://github.com/angus-cx/SubCase")
-            }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(iconSpacing, Alignment.CenterHorizontally)
         ) {
-            Icon(
-                painter = painterResource(id = R.drawable.github),
-                contentDescription = "github",
-                tint = Color.Gray,
-            )
-        }
-    }
-}
+            IconButton(
+                modifier = Modifier.size(iconButtonSize),
+                onClick = {
+                    uriHandler.openUri("https://github.com/angus-cx/SubCase")
+                }
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_github),
+                    contentDescription = "github",
+                    tint = Color.Gray,
+                    modifier = Modifier.size(iconSize),
+                )
+            }
 
-/** 根据当前 WebView 提供方包名判断渠道。 */
-internal fun webViewChannel(packageName: String?): String {
-    if (packageName == null) return "unavailable"
-    return when (packageName.substringAfterLast('.')) {
-        "beta" -> "beta"
-        "dev" -> "dev"
-        "canary" -> "canary"
-        else -> "stable"
+            IconButton(
+                modifier = Modifier.size(iconButtonSize),
+                onClick = {
+                    uriHandler.openUri("https://t.me/sion_channel")
+                }
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_telegram),
+                    contentDescription = "telegram",
+                    tint = Color.Gray,
+                    modifier = Modifier.size(iconSize),
+                )
+            }
+        }
     }
 }
