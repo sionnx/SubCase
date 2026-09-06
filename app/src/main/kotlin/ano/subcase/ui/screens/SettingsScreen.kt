@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -40,6 +39,8 @@ import ano.subcase.BuildConfig
 import ano.subcase.GlobalStatus
 import ano.subcase.R
 import ano.subcase.ui.MainViewModel
+import ano.subcase.ui.components.Section
+import ano.subcase.ui.components.SectionDefaults
 import ano.subcase.ui.components.SubStoreUpdateDialog
 import ano.subcase.ui.components.buildSubStoreUrl
 import ano.subcase.ui.theme.Blue
@@ -47,10 +48,7 @@ import ano.subcase.ui.theme.switchColors
 import ano.subcase.util.ConfigStore
 import ano.subcase.util.SubStore
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
-import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -87,15 +85,10 @@ fun SettingsScreen(navController: NavController) {
             FrontEndCard(mViewModel)
             Spacer(modifier = Modifier.padding(10.dp))
             BackEndCard(mViewModel)
-            HintSpan("你可以点击backend地址,来快速复制")
             Spacer(modifier = Modifier.padding(10.dp))
             AllowLanSpan(mViewModel)
-            if (mViewModel.allowLan) {
-                AllowLanHint()
-            }
             Spacer(modifier = Modifier.padding(10.dp))
             AllowCrashReport(mViewModel)
-            HintSpan("仅在应用崩溃时发送,我们不会收集任何其他信息")
             Spacer(modifier = Modifier.padding(10.dp))
             OpenSubStore(mViewModel)
             Spacer(modifier = Modifier.padding(10.dp))
@@ -114,185 +107,77 @@ fun FrontEndCard(mViewModel: MainViewModel) {
     val clipboardManager = LocalClipboardManager.current
     val urlHandler = LocalUriHandler.current
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 10.dp),
-        horizontalArrangement = Arrangement.Start,
-    ) {
-        Text(
-            stringResource(R.string.frontend),
-            fontSize = 14.sp
-        )
-    }
-
-    Spacer(modifier = Modifier.height(3.dp))
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.defaultColors(
-            color = MiuixTheme.colorScheme.surface
-        )
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .padding(horizontal = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    stringResource(R.string.address),
-                )
-
-                // 局域网模式对外暴露真实地址，本机模式固定使用回环地址。
-                val host = if (mViewModel.allowLan) GlobalStatus.lanIP.value else "127.0.0.1"
-
-                Text(
-                    "http://${host}:8080",
-                    modifier = Modifier.clickable {
-                        clipboardManager.setText(AnnotatedString("http://${host}:8080"))
-                    },
-                )
-            }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(start = 10.dp),
-                color = Color.LightGray,
-                thickness = 0.5.dp
+    Section(header = stringResource(R.string.frontend)) {
+        item {
+            Text(stringResource(R.string.address))
+            // 局域网模式对外暴露真实地址，本机模式固定使用回环地址。
+            val host = if (mViewModel.allowLan) GlobalStatus.lanIP.value else "127.0.0.1"
+            val address = "http://${host}:8080"
+            Text(
+                address,
+                modifier = Modifier.clickable {
+                    clipboardManager.setText(AnnotatedString(address))
+                },
             )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .padding(horizontal = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    stringResource(R.string.version),
-                )
-
-                Text(
-                    SubStore.localFrontendVersion,
-                    modifier = Modifier.clickable {
-                        urlHandler.openUri("https://github.com/sub-store-org/Sub-Store-Front-End/releases")
-                    },
-                    color = Blue
-                )
-            }
-
+        }
+        item {
+            Text(stringResource(R.string.version))
+            Text(
+                SubStore.localFrontendVersion,
+                modifier = Modifier.clickable {
+                    urlHandler.openUri("https://github.com/sub-store-org/Sub-Store-Front-End/releases")
+                },
+                color = Blue,
+            )
         }
     }
 }
 
 @Composable
 fun BackEndCard(mViewModel: MainViewModel) {
+    val clipboardManager = LocalClipboardManager.current
     val urlHandler = LocalUriHandler.current
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 10.dp),
-        horizontalArrangement = Arrangement.Start,
+    Section(
+        header = stringResource(R.string.backend),
+        footer = "你可以点击backend地址,来快速复制",
     ) {
-        Text(
-            stringResource(R.string.backend),
-            color = MiuixTheme.colorScheme.onBackground,
-            fontSize = 14.sp
-        )
-    }
-
-    Spacer(modifier = Modifier.height(3.dp))
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.defaultColors(
-            color = MiuixTheme.colorScheme.surface
-        )
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .padding(horizontal = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    stringResource(R.string.address),
-                )
-
-                val clipboardManager = LocalClipboardManager.current
-
-                val host: String = if (mViewModel.allowLan) {
-                    GlobalStatus.lanIP.value
-                } else {
-                    "127.0.0.1"
-                }
-
-                Text(
-                    "http://${host}:8081",
-                    modifier = Modifier.clickable {
-                        clipboardManager.setText(AnnotatedString("http://${host}:8081"))
-                    },
-                )
-            }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(start = 10.dp),
-                color = Color.LightGray,
-                thickness = 0.5.dp
+        item {
+            Text(stringResource(R.string.address))
+            val host = if (mViewModel.allowLan) GlobalStatus.lanIP.value else "127.0.0.1"
+            val address = "http://${host}:8081"
+            Text(
+                address,
+                modifier = Modifier.clickable {
+                    clipboardManager.setText(AnnotatedString(address))
+                },
             )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .padding(horizontal = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    stringResource(R.string.version),
-                )
-
-                Text(
-                    SubStore.localBackendVersion,
-                    modifier = Modifier.clickable {
-                        urlHandler.openUri("https://github.com/sub-store-org/Sub-Store/releases")
-                    },
-                    color = Blue
-                )
-            }
+        }
+        item {
+            Text(stringResource(R.string.version))
+            Text(
+                SubStore.localBackendVersion,
+                modifier = Modifier.clickable {
+                    urlHandler.openUri("https://github.com/sub-store-org/Sub-Store/releases")
+                },
+                color = Blue,
+            )
         }
     }
 }
 
 @Composable
 fun AllowLanSpan(mViewModel: MainViewModel) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.defaultColors(
-            color = MiuixTheme.colorScheme.surface
-        )
+    Section(
+        footer = if (mViewModel.allowLan && !GlobalStatus.isWifi.value) {
+            "当前不是WIFI环境,无法获取准确的局域网IP!"
+        } else {
+            null
+        },
+        footerColor = SectionDefaults.WarningColor,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                stringResource(R.string.allow_lan),
-            )
-
+        item {
+            Text(stringResource(R.string.allow_lan))
             Switch(
                 checked = mViewModel.allowLan,
                 onCheckedChange = {
@@ -300,7 +185,7 @@ fun AllowLanSpan(mViewModel: MainViewModel) {
                     ConfigStore.isAllowLan = it
                 },
                 colors = switchColors(),
-                modifier = Modifier.scale(0.9f)
+                modifier = Modifier.scale(0.9f),
             )
         }
     }
@@ -308,24 +193,9 @@ fun AllowLanSpan(mViewModel: MainViewModel) {
 
 @Composable
 fun AllowCrashReport(mViewModel: MainViewModel) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.defaultColors(
-            color = MiuixTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                stringResource(R.string.allow_crash_report),
-            )
-
+    Section(footer = "仅在应用崩溃时发送,我们不会收集任何其他信息") {
+        item {
+            Text(stringResource(R.string.allow_crash_report))
             Switch(
                 checked = mViewModel.allowCrashReport,
                 onCheckedChange = {
@@ -333,41 +203,10 @@ fun AllowCrashReport(mViewModel: MainViewModel) {
                     ConfigStore.isAllowCrashReport = it
                 },
                 colors = switchColors(),
-                modifier = Modifier.scale(0.9f)
+                modifier = Modifier.scale(0.9f),
             )
         }
     }
-}
-
-@Composable
-fun HintSpan(hint: String) {
-    Text(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 10.dp, top = 5.dp),
-        text = hint,
-        color = Color(0xFF909399),
-        fontSize = 14.sp
-    )
-}
-
-@Composable
-fun AllowLanHint() {
-
-    if (GlobalStatus.isWifi.value) {
-        return
-    }
-
-    val text = "当前不是WIFI环境,无法获取准确的局域网IP!"
-
-    Text(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 10.dp, top = 5.dp),
-        text = text,
-        color = Color(0xFFfaad14),
-        fontSize = 14.sp
-    )
 }
 
 @Composable
