@@ -12,7 +12,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.lifecycle.viewmodel.compose.viewModel
+import ano.subcase.BuildConfig
 import ano.subcase.GlobalStatus
+import ano.subcase.ui.screens.DebugScreen
 import ano.subcase.ui.components.StartupUpdateCoordinator
 import ano.subcase.ui.screens.HomeScreen
 import ano.subcase.ui.screens.SettingsScreen
@@ -56,7 +58,22 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SetupNavGraph(navController: NavHostController) {
+    // 在 NavHost 外获取 Activity 的 ViewModelStore，返回首页和旋转时保留占用。
+    val debugViewModel = if (BuildConfig.DEBUG) viewModel<DebugViewModel>() else null
     NavHost(navController = navController, startDestination = "home_screen") {
+        if (BuildConfig.DEBUG) {
+            composable(
+                route = "debug_screen",
+                enterTransition = {
+                    slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300))
+                },
+                popExitTransition = {
+                    slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300))
+                },
+            ) {
+                DebugScreen(navController, checkNotNull(debugViewModel))
+            }
+        }
         composable("home_screen") { HomeScreen(navController = navController) }
         composable(
             route = "settings_screen",
