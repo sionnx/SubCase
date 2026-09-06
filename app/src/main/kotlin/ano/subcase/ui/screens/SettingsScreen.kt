@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -89,6 +90,15 @@ fun SettingsScreen(navController: NavController) {
             AllowLanSpan(mViewModel)
             Spacer(modifier = Modifier.padding(10.dp))
             AllowCrashReport(mViewModel)
+            if (BuildConfig.DEBUG) {
+                Spacer(modifier = Modifier.padding(10.dp))
+                Section(modifier = Modifier.clickable { navController.navigate("debug_screen") }) {
+                    item {
+                        Text("调试")
+                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
+                    }
+                }
+            }
             Spacer(modifier = Modifier.padding(10.dp))
             OpenSubStore(mViewModel)
             Spacer(modifier = Modifier.padding(10.dp))
