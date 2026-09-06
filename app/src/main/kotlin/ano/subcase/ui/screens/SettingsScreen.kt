@@ -46,6 +46,7 @@ import ano.subcase.ui.components.SubStoreUpdateDialog
 import ano.subcase.ui.components.buildSubStoreUrl
 import ano.subcase.ui.theme.Blue
 import ano.subcase.ui.theme.switchColors
+import ano.subcase.util.CrashReporter
 import ano.subcase.util.ConfigStore
 import ano.subcase.util.SubStore
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -209,8 +210,8 @@ fun AllowCrashReport(mViewModel: MainViewModel) {
             Switch(
                 checked = mViewModel.allowCrashReport,
                 onCheckedChange = {
+                    CrashReporter.setReportingEnabled(it)
                     mViewModel.allowCrashReport = it
-                    ConfigStore.isAllowCrashReport = it
                 },
                 colors = switchColors(),
                 modifier = Modifier.scale(0.9f),
