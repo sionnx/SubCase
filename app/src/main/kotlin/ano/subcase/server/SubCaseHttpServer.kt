@@ -17,8 +17,14 @@ import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondFile
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import timber.log.Timber
 import java.io.File
+import java.net.BindException
 import java.nio.charset.StandardCharsets
 
 /** 分别承载 Sub-Store 前端与脚本 API 的两个 Ktor CIO 服务。 */
@@ -28,29 +34,116 @@ class SubCaseHttpServer(
     private val backendPort: Int,
     private val frontendDir: File,
     private val execute: suspend (LoonRequest) -> LoonResponse,
+    private val onFailure: (Throwable) -> Unit,
 ) {
     private var frontendServer: EmbeddedServer<*, *>? = null
     private var backendServer: EmbeddedServer<*, *>? = null
+    private val serverJob = SupervisorJob()
+    private val serverScope = CoroutineScope(serverJob + Dispatchers.IO)
+    private val stateLock = Any()
+    private var state = State.NEW
+    private var firstFailure: HttpServerFailure? = null
 
+    private enum class State { NEW, STARTING, RUNNING, FAILED, STOPPING, STOPPED }
+
+    // 启停串行执行；异常处理器只持有 stateLock，避免等待引擎退出时相互阻塞。
+    @Synchronized
     fun start() {
+        synchronized(stateLock) {
+            check(state == State.NEW) { "Sub-Store server 实例已使用，请创建新实例" }
+            state = State.STARTING
+        }
         try {
-            frontendServer = embeddedServer(CIO, host = host, port = frontendPort) {
-                configureFrontend()
-            }.start(wait = false)
-            backendServer = embeddedServer(CIO, host = host, port = backendPort) {
-                configureBackend()
-            }.start(wait = false)
+            startEndpoint("前端", frontendPort) { configureFrontend() }
+            synchronized(stateLock) { firstFailure?.let { throw it } }
+            startEndpoint("后端", backendPort) { configureBackend() }
+            synchronized(stateLock) {
+                firstFailure?.let { throw it }
+                state = State.RUNNING
+            }
         } catch (error: Throwable) {
-            stop()
-            throw error
+            val failure = synchronized(stateLock) { firstFailure ?: error }
+            try {
+                stop()
+            } catch (cleanupError: Throwable) {
+                if (cleanupError !== failure) failure.addSuppressed(cleanupError)
+            }
+            throw failure
         }
     }
 
+    private fun startEndpoint(role: String, port: Int, module: suspend Application.() -> Unit) {
+        try {
+            val server = serverScope.embeddedServer(
+                CIO,
+                host = host,
+                port = port,
+                parentCoroutineContext = CoroutineExceptionHandler { _, error ->
+                    handleEngineFailure(role, port, error)
+                },
+                module = module,
+            )
+            // start 抛错时仍保留实例，以便整组回滚。
+            if (role == "前端") frontendServer = server else backendServer = server
+            server.start(wait = false)
+        } catch (error: Throwable) {
+            throw synchronized(stateLock) {
+                firstFailure ?: HttpServerFailure(role, host, port, true, error).also {
+                    firstFailure = it
+                }
+            }
+        }
+    }
+
+    private fun handleEngineFailure(role: String, port: Int, error: Throwable) {
+        if (error is CancellationException) return
+        val failure = synchronized(stateLock) {
+            firstFailure?.let { previous ->
+                if (generateSequence(previous as Throwable) { it.cause }.none { it === error }) {
+                    previous.addSuppressed(error)
+                    Timber.e(error, "%s服务伴随异常：%s:%d", role, host, port)
+                }
+                return
+            }
+            if (state == State.STOPPING || state == State.STOPPED) {
+                // 正常取消已在上方过滤；额外的退出异常仍需可见。
+                Timber.e(error, "%s服务退出异常：%s:%d", role, host, port)
+                return
+            }
+            val failure = HttpServerFailure(role, host, port, state == State.STARTING, error)
+            firstFailure = failure
+            if (state == State.STARTING) return // 由 start 统一回滚和上报。
+            state = State.FAILED
+            failure
+        }
+        // 调用方将清理调度到主线程，避免在引擎的完成回调中等待引擎自身。
+        onFailure(failure)
+    }
+
+    @Synchronized
     fun stop() {
-        backendServer?.stop(1_000, 5_000)
-        frontendServer?.stop(1_000, 5_000)
-        backendServer = null
-        frontendServer = null
+        synchronized(stateLock) {
+            if (state == State.STOPPED) return
+            state = State.STOPPING
+        }
+        var failure: Throwable? = null
+        try {
+            for (server in listOfNotNull(backendServer, frontendServer)) {
+                try {
+                    server.stop(1_000, 5_000)
+                } catch (error: Throwable) {
+                    val previous = failure
+                    if (previous == null) failure = error
+                    else if (previous !== error) previous.addSuppressed(error)
+                }
+            }
+        } finally {
+            serverJob.cancel()
+            backendServer = null
+            frontendServer = null
+            synchronized(stateLock) { state = State.STOPPED }
+        }
+        failure?.let { throw it }
     }
 
     private fun Application.configureFrontend() {
@@ -146,3 +239,23 @@ class SubCaseHttpServer(
         private const val ALLOWED_HEADERS = "Origin, X-Requested-With, Content-Type, Accept"
     }
 }
+
+/** 同时保留用户可读的地址信息和 Ktor 原始异常链。 */
+internal class HttpServerFailure(
+    val role: String,
+    val host: String,
+    val port: Int,
+    val duringStartup: Boolean,
+    cause: Throwable,
+) : Exception(
+    buildString {
+        append(role).append(if (duringStartup) "服务启动失败：" else "服务运行失败：")
+        append(host).append(':').append(port)
+        if (generateSequence(cause) { it.cause }.any { it is BindException }) {
+            append(" 已被占用")
+        } else {
+            append("，").append(cause.message ?: cause.javaClass.simpleName)
+        }
+    },
+    cause,
+)

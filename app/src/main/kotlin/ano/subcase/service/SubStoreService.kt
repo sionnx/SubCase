@@ -2,68 +2,104 @@ package ano.subcase.service
 
 import android.app.Service
 import android.content.Intent
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.widget.Toast
 import ano.subcase.GlobalStatus
 import ano.subcase.engine.CaseEngine
-import ano.subcase.util.ConfigStore
-import ano.subcase.util.NetworkUtil
+import ano.subcase.util.currentServerConfig
+import ano.subcase.util.CrashReporter
 import ano.subcase.util.NotificationUtil
-import com.google.firebase.Firebase
-import com.google.firebase.crashlytics.crashlytics
 
 class SubStoreService : Service() {
 
     companion object {
         var caseEngine: CaseEngine? = null
+            private set
     }
 
-    override fun onBind(intent: Intent): IBinder? {
-        return null
-    }
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var ownedEngine: CaseEngine? = null
+    private var notificationStarted = false
+
+    override fun onBind(intent: Intent): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
             if (caseEngine != null) return START_STICKY
+            notificationStarted = true
             NotificationUtil.startNotification(this)
-            val frontendPort = 8080
-            val backendPort = 8081
-
-            val allowLan = ConfigStore.isAllowLan
-
-            if (NetworkUtil.isPortInUse(frontendPort) || NetworkUtil.isPortInUse(backendPort)) {
-                // port is in use
-                throw Exception("Port $frontendPort or $backendPort is already in use")
-            }
-            caseEngine = CaseEngine(
+            val config = currentServerConfig()
+            val engine = CaseEngine(
                 context = this,
-                backendPort = backendPort,
-                frontendPort = frontendPort,
-                allowLan = allowLan
+                backendPort = config.backend.port,
+                frontendPort = config.frontend.port,
+                host = config.frontend.host,
+                onFailure = { source, error ->
+                    mainHandler.post {
+                        // 仅当前 Service 所持有的实例可以触发整组停止。
+                        if (ownedEngine === source && caseEngine === source) {
+                            handleFailure(error)
+                            stopSelf()
+                        }
+                    }
+                },
             )
-            caseEngine!!.startServer()
-
+            ownedEngine = engine
+            caseEngine = engine
+            engine.startServer()
             GlobalStatus.isServiceRunning.value = true
-
             return START_STICKY
-        } catch (e: Exception) {
-            runCatching { caseEngine?.stopServer() }
-            caseEngine = null
-            e.printStackTrace()
-            Firebase.crashlytics.recordException(e)
-            Toast.makeText(this, e.message ?: "Sub-Store 后端启动失败", Toast.LENGTH_LONG).show()
-            GlobalStatus.isServiceRunning.value = false
+        } catch (error: Exception) {
+            handleFailure(error)
             stopSelf(startId)
             return START_NOT_STICKY
         }
     }
 
+    private fun handleFailure(error: Throwable) {
+        val cleanupError = releaseResources()
+        if (cleanupError != null && cleanupError !== error) error.addSuppressed(cleanupError)
+        CrashReporter.recordException(error)
+        Toast.makeText(this, error.message ?: "Sub-Store 服务失败", Toast.LENGTH_LONG).show()
+    }
+
+    private fun releaseResources(): Throwable? {
+        val engine = ownedEngine
+        ownedEngine = null // 先失效回调，再执行可能耗时的清理。
+        var failure: Throwable? = null
+        fun cleanup(action: () -> Unit) {
+            try {
+                action()
+            } catch (error: Throwable) {
+                val previous = failure
+                if (previous == null) failure = error
+                else if (previous !== error) previous.addSuppressed(error)
+            }
+        }
+        try {
+            cleanup { engine?.stopServer() }
+        } finally {
+            if (caseEngine === engine) {
+                caseEngine = null
+                GlobalStatus.isServiceRunning.value = false
+            }
+            if (notificationStarted) {
+                notificationStarted = false
+                cleanup { stopForeground(STOP_FOREGROUND_REMOVE) }
+                cleanup { NotificationUtil.stopNotification() }
+            }
+        }
+        return failure
+    }
+
     override fun onDestroy() {
-        // Service 主线程按 server → WebView → 通知的顺序释放资源。
-        caseEngine?.stopServer()
-        caseEngine = null
-        GlobalStatus.isServiceRunning.value = false
-        NotificationUtil.stopNotification()
-        super.onDestroy()
+        try {
+            releaseResources()?.let(CrashReporter::recordException)
+        } finally {
+            mainHandler.removeCallbacksAndMessages(null)
+            super.onDestroy()
+        }
     }
 }

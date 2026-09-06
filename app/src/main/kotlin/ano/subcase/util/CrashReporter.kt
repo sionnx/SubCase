@@ -25,6 +25,13 @@ object CrashReporter {
         }
     }
 
+    fun recordException(error: Throwable) {
+        Timber.e(error)
+        if (!BuildConfig.DEBUG && ConfigStore.isAllowCrashReport) {
+            FirebaseCrashlytics.getInstance().recordException(error)
+        }
+    }
+
     fun log(message: String) {
         if (BuildConfig.DEBUG) {
             Timber.d("CrashLog: $message")

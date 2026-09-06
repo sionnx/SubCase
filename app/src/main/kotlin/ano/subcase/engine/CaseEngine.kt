@@ -18,9 +18,9 @@ class CaseEngine(
     private val context: Context,
     private val backendPort: Int,
     private val frontendPort: Int,
-    allowLan: Boolean,
+    val host: String,
+    private val onFailure: (CaseEngine, Throwable) -> Unit,
 ) {
-    val host = if (allowLan) "0.0.0.0" else "127.0.0.1"
     private val backendDir: File
     private var httpServer: SubCaseHttpServer? = null
 
@@ -37,13 +37,18 @@ class CaseEngine(
             backendPort = backendPort,
             frontendDir = File(context.filesDir, "frontend"),
             execute = ::execute,
-        ).also { it.start() }
+            onFailure = { error -> onFailure(this, error) },
+        )
+        httpServer!!.start()
     }
 
     fun stopServer() {
         check(Looper.myLooper() == Looper.getMainLooper()) { "CaseEngine 必须在主线程停止" }
-        httpServer?.stop()
-        httpServer = null
+        try {
+            httpServer?.stop()
+        } finally {
+            httpServer = null
+        }
     }
 
     private suspend fun execute(request: LoonRequest): LoonResponse {
