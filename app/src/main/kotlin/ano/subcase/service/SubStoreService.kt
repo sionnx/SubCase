@@ -96,7 +96,11 @@ class SubStoreService : Service() {
 
     override fun onDestroy() {
         try {
-            releaseResources()?.let(CrashReporter::recordException)
+            releaseResources()?.let { error ->
+                val message = "停止 Sub-Store 服务失败：${error.message ?: error.javaClass.simpleName}"
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                CrashReporter.recordException(error)
+            }
         } finally {
             mainHandler.removeCallbacksAndMessages(null)
             super.onDestroy()

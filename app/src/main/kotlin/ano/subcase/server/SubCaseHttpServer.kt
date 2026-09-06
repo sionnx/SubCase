@@ -130,11 +130,14 @@ class SubCaseHttpServer(
         try {
             for (server in listOfNotNull(backendServer, frontendServer)) {
                 try {
-                    server.stop(1_000, 5_000)
+                    // 无限等待 CIO 关闭完成，避免内部超时后正常返回。
+                    server.stop(
+                        gracePeriodMillis = Long.MAX_VALUE,
+                        timeoutMillis = Long.MAX_VALUE,
+                    )
                 } catch (error: Throwable) {
                     val previous = failure
                     if (previous == null) failure = error
-                    else if (previous !== error) previous.addSuppressed(error)
                 }
             }
         } finally {
