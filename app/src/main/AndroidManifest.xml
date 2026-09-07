@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 
     <application
@@ -33,8 +33,12 @@
         </activity>
 
         <service android:name="ano.subcase.service.SubStoreService"
-                 android:foregroundServiceType="dataSync"
-        />
+                 android:exported="false"
+                 android:foregroundServiceType="specialUse">
+            <property
+                    android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                    android:value="User-started on-device HTTP server for subscription management and conversion. Keeps the local web interface and subscription endpoints available to client apps and, when enabled by the user, devices on the local network while SubCase is in the background. Users can stop the server from the app or its ongoing notification."/>
+        </service>
 
         <provider
                 android:name="androidx.core.content.FileProvider"

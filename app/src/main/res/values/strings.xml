@@ -22,7 +22,7 @@
     <string name="open_sub_store_in_external_browser">Open SubStore in external browser</string>
     <string name="check_sub_store_updates">Check for Sub Store updates</string>
 
-    <string name="notification_content">Is running in the background</string>
+    <string name="notification_content">Sub-Store server is running</string>
 
     <string name="app_update_title">New version %1$s</string>
     <string name="app_update_version">Current %1$s · Latest %2$s</string>

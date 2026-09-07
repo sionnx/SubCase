@@ -1,1 +1,3 @@
 禁止静默失败，禁止过度设计
+
+本APP不会使用Google Play进行分发，而是通过GitHub

@@ -22,7 +22,7 @@
     <string name="open_sub_store_in_external_browser">在外部浏览器中打开 SubStore</string>
     <string name="check_sub_store_updates">检查 Sub Store 更新</string>
 
-    <string name="notification_content">正在后台运行</string>
+    <string name="notification_content">Sub-Store 服务运行中</string>
 
     <string name="app_update_title">发现新版本 %1$s</string>
     <string name="app_update_version">当前 %1$s · 最新 %2$s</string>
