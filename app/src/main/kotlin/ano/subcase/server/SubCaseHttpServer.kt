@@ -7,7 +7,6 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.call
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
@@ -130,10 +129,10 @@ class SubCaseHttpServer(
         try {
             for (server in listOfNotNull(backendServer, frontendServer)) {
                 try {
-                    // 无限等待 CIO 关闭完成，避免内部超时后正常返回。
+                    // 立即取消，跳过关闭等待，让主线程继续执行 WebView 清理。
                     server.stop(
-                        gracePeriodMillis = Long.MAX_VALUE,
-                        timeoutMillis = Long.MAX_VALUE,
+                        gracePeriodMillis = 0,
+                        timeoutMillis = 0,
                     )
                 } catch (error: Throwable) {
                     val previous = failure
