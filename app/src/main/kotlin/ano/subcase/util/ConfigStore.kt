@@ -12,6 +12,7 @@ import ano.subcase.util.PreferencesKeys.FRONTEND_LOCAL_VER
 import ano.subcase.util.PreferencesKeys.LEGACY_NODE_MIGRATED
 
 object PreferencesKeys {
+    const val HOME_PANEL_VERTICAL_FRACTION = "home_panel_vertical_fraction"
     const val NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested"
 
     const val APP_IS_FIRST_OPEN = "app_first_open"
@@ -26,6 +27,20 @@ object PreferencesKeys {
 }
 
 object ConfigStore {
+    val homePanelVerticalFraction: Float?
+        get() = getInstance()
+            .getFloat(PreferencesKeys.HOME_PANEL_VERTICAL_FRACTION, Float.NaN)
+            .takeIf { it.isFinite() }
+            ?.coerceIn(0f, 1f)
+
+    /** Call from an IO dispatcher; commit reports disk write failures. */
+    fun saveHomePanelVerticalFraction(fraction: Float) {
+        require(fraction.isFinite() && fraction in 0f..1f)
+        check(getInstance().edit()
+            .putFloat(PreferencesKeys.HOME_PANEL_VERTICAL_FRACTION, fraction)
+            .commit()) { "Failed to save home panel position" }
+    }
+
     private var prefs: SharedPreferences? = null
 
     fun getInstance(): SharedPreferences {

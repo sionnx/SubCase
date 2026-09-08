@@ -5,9 +5,47 @@ import android.content.Context
 import android.content.MutableContextWrapper
 import android.view.ViewGroup
 import android.webkit.WebView
+import android.widget.Toast
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import ano.subcase.R
+import ano.subcase.util.ConfigStore
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
+    var panelVerticalFraction by mutableStateOf(ConfigStore.homePanelVerticalFraction)
+        private set
+
+    private val panelSaveMutex = Mutex()
+
+    // 保存面板位置
+    fun savePanelPosition(fraction: Float) {
+        panelVerticalFraction = fraction
+        viewModelScope.launch {
+            try {
+                // Preserve release order when several drags finish in quick succession.
+                panelSaveMutex.withLock {
+                    withContext(Dispatchers.IO) {
+                        ConfigStore.saveHomePanelVerticalFraction(fraction)
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Timber.e(error, "Failed to persist home panel position")
+                Toast.makeText(getApplication(), R.string.panel_position_save_failed, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     private val webViewContext = MutableContextWrapper(application)
     private var retainedWebView: WebView? = null

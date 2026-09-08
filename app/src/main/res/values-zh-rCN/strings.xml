@@ -39,4 +39,5 @@
     <string name="notification_permission_continue">继续授权</string>
     <string name="notification_permission_settings">前往设置</string>
     <string name="notification_permission_failed">无法打开通知授权页面，请重试。</string>
+    <string name="panel_position_save_failed">位置保存失败</string>
 </resources>

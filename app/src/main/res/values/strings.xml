@@ -39,4 +39,5 @@
     <string name="notification_permission_continue">Continue</string>
     <string name="notification_permission_settings">Open settings</string>
     <string name="notification_permission_failed">Unable to open notification authorization. Please try again.</string>
+    <string name="panel_position_save_failed">Failed to save panel position</string>
 </resources>
