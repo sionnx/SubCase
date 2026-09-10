@@ -23,6 +23,11 @@ object PreferencesKeys {
     const val BACKEND_LOCAL_VER = "backend_local_ver"
     const val FRONTEND_LOCAL_VER = "frontend_local_ver"
 
+    const val SUBSTORE_UPDATE_POLICY = "substore_update_policy"
+    const val LAST_FRONTEND_INSTALLED_AT = "last_frontend_installed_at"
+    const val LAST_BACKEND_INSTALLED_AT = "last_backend_installed_at"
+    const val LAST_SUBSTORE_REMOTE_VERSION_CHECK_AT = "last_substore_remote_version_check_at"
+
     const val LEGACY_NODE_MIGRATED = "legacy_node_migrated"
 }
 
@@ -84,6 +89,36 @@ object ConfigStore {
         get() = getInstance().getString(BACKEND_LOCAL_VER, "")!!
         set(value) {
             getInstance().edit { putString(BACKEND_LOCAL_VER, value) }
+        }
+
+    var subStoreUpdatePolicy: SubStoreUpdatePolicy
+        get() = SubStoreUpdatePolicy.fromStored(
+            getInstance().getString(PreferencesKeys.SUBSTORE_UPDATE_POLICY, null),
+        )
+        set(value) {
+            getInstance().edit {
+                putString(PreferencesKeys.SUBSTORE_UPDATE_POLICY, value.name)
+            }
+        }
+
+    var lastFrontendInstalledAt: Long
+        get() = getInstance().getLong(PreferencesKeys.LAST_FRONTEND_INSTALLED_AT, 0L)
+        set(value) {
+            getInstance().edit { putLong(PreferencesKeys.LAST_FRONTEND_INSTALLED_AT, value) }
+        }
+
+    var lastBackendInstalledAt: Long
+        get() = getInstance().getLong(PreferencesKeys.LAST_BACKEND_INSTALLED_AT, 0L)
+        set(value) {
+            getInstance().edit { putLong(PreferencesKeys.LAST_BACKEND_INSTALLED_AT, value) }
+        }
+
+    var lastSubStoreRemoteVersionCheckAt: Long
+        get() = getInstance().getLong(PreferencesKeys.LAST_SUBSTORE_REMOTE_VERSION_CHECK_AT, 0L)
+        set(value) {
+            getInstance().edit {
+                putLong(PreferencesKeys.LAST_SUBSTORE_REMOTE_VERSION_CHECK_AT, value)
+            }
         }
 
     var legacyNodeMigrated: Boolean

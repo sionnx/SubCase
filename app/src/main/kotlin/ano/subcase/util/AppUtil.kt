@@ -43,6 +43,7 @@ object AppUtil {
                 Paths.get(caseApp.filesDir.path + "/dist"),
                 Paths.get(caseApp.filesDir.path + "/frontend")
             )
+            SubStore.lastFrontendInstalledAt = System.currentTimeMillis()
         } else {
             Timber.w("Failed to move dist to frontend")
         }

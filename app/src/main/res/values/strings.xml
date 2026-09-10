@@ -21,6 +21,18 @@
     <string name="open_settings">Open settings</string>
     <string name="open_sub_store_in_external_browser">Open SubStore in external browser</string>
     <string name="check_sub_store_updates">Check for Sub Store updates</string>
+    <string name="substore_update_policy_section">SubStore update policy</string>
+    <string name="substore_auto_update_policy">Auto-update policy</string>
+    <string name="substore_last_updated">Last updated %1$s</string>
+    <string name="substore_policy_manual">Manual</string>
+    <string name="substore_policy_on_start">On app start</string>
+    <string name="substore_policy_every_3h">Every 3 hours</string>
+    <string name="substore_policy_every_6h">Every 6 hours</string>
+    <string name="substore_policy_every_12h">Every 12 hours</string>
+    <string name="substore_policy_every_24h">Every 24 hours</string>
+    <string name="substore_policy_every_48h">Every 48 hours</string>
+    <string name="substore_policy_every_7d">Every 7 days</string>
+    <string name="substore_update_policy_interval_hint">Interval auto-update only works while the service is running</string>
 
     <string name="notification_content">Sub-Store server is running</string>
 

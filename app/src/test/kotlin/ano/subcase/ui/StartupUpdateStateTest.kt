@@ -16,57 +16,46 @@ class StartupUpdateStateTest {
 
     @Test
     fun `app result gates all startup dialogs`() {
+        val state = StartupUpdateUiState()
+        assertEquals(StartupDialog.NONE, resolveStartupDialog(state))
+    }
+
+    @Test
+    fun `pending app update shows app dialog`() {
         val state = StartupUpdateUiState(
-            subStoreCheckFinished = true,
-            hasSubStoreUpdate = true,
+            appCheckFinished = true,
+            appRelease = release,
+        )
+        assertEquals(StartupDialog.APP_UPDATE, resolveStartupDialog(state))
+    }
+
+    @Test
+    fun `skipping app update dismisses startup dialogs`() {
+        val state = StartupUpdateUiState(
+            appCheckFinished = true,
+            appRelease = release,
+            appDecision = AppUpdateDecision.SKIPPED,
         )
         assertEquals(StartupDialog.NONE, resolveStartupDialog(state))
     }
 
     @Test
-    fun `app update has priority over sub store update`() {
-        val state = StartupUpdateUiState(
-            appCheckFinished = true,
-            appRelease = release,
-            subStoreCheckFinished = true,
-            hasSubStoreUpdate = true,
-        )
-        assertEquals(StartupDialog.APP_UPDATE, resolveStartupDialog(state))
-    }
-
-    @Test
-    fun `skipping app update continues with sub store update`() {
-        val state = StartupUpdateUiState(
-            appCheckFinished = true,
-            appRelease = release,
-            appDecision = AppUpdateDecision.SKIPPED,
-            subStoreCheckFinished = true,
-            hasSubStoreUpdate = true,
-        )
-        assertEquals(StartupDialog.SUB_STORE_UPDATE, resolveStartupDialog(state))
-    }
-
-    @Test
-    fun `updating app keeps app dialog and suppresses sub store`() {
+    fun `updating app keeps app dialog`() {
         val state = StartupUpdateUiState(
             appCheckFinished = true,
             appRelease = release,
             appDecision = AppUpdateDecision.UPDATING,
-            subStoreCheckFinished = true,
-            hasSubStoreUpdate = true,
         )
         assertEquals(StartupDialog.APP_UPDATE, resolveStartupDialog(state))
     }
 
     @Test
-    fun `latest app allows sub store update`() {
+    fun `latest app shows no startup dialog`() {
         val state = StartupUpdateUiState(
             appCheckFinished = true,
             appDecision = AppUpdateDecision.UNAVAILABLE,
-            subStoreCheckFinished = true,
-            hasSubStoreUpdate = true,
         )
-        assertEquals(StartupDialog.SUB_STORE_UPDATE, resolveStartupDialog(state))
+        assertEquals(StartupDialog.NONE, resolveStartupDialog(state))
     }
 
     @Test
@@ -82,8 +71,6 @@ class StartupUpdateStateTest {
             appCheckFinished = true,
             appRelease = release,
             appDecision = AppUpdateDecision.INSTALLER_LAUNCHED,
-            subStoreCheckFinished = true,
-            hasSubStoreUpdate = true,
         )
         assertEquals(StartupDialog.NONE, resolveStartupDialog(state))
     }

@@ -31,6 +31,9 @@ object BackendFiles {
             }
             check(hasScripts(bundledDir)) { "APK 内置后端脚本不完整" }
             ConfigStore.localBackendVersion = BUNDLED_VERSION
+            if (ConfigStore.lastBackendInstalledAt <= 0L) {
+                ConfigStore.lastBackendInstalledAt = System.currentTimeMillis()
+            }
         }
         return backendDir
     }

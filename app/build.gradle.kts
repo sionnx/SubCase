@@ -102,6 +102,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.miuix.ui.android)
+    implementation(libs.miuix.preference.android)
     implementation(libs.haze)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)

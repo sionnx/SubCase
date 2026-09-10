@@ -7,7 +7,9 @@ import androidx.lifecycle.viewModelScope
 import ano.subcase.BuildConfig
 import ano.subcase.model.AppRelease
 import ano.subcase.util.AppUpdater
+import ano.subcase.util.ConfigStore
 import ano.subcase.util.SubStore
+import ano.subcase.util.SubStoreUpdatePolicy
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,12 +17,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.io.File
 
 enum class StartupDialog {
     NONE,
     APP_UPDATE,
-    SUB_STORE_UPDATE,
 }
 
 enum class AppUpdateDecision {
@@ -42,8 +44,6 @@ data class StartupUpdateUiState(
     val appCheckFinished: Boolean = false,
     val appRelease: AppRelease? = null,
     val appDecision: AppUpdateDecision = AppUpdateDecision.PENDING,
-    val subStoreCheckFinished: Boolean = false,
-    val hasSubStoreUpdate: Boolean = false,
     val activeDialog: StartupDialog = StartupDialog.NONE,
     val downloadState: AppDownloadState = AppDownloadState.Idle,
 )
@@ -54,10 +54,6 @@ internal fun resolveStartupDialog(state: StartupUpdateUiState): StartupDialog {
         return StartupDialog.APP_UPDATE
     }
     if (state.appDecision == AppUpdateDecision.UPDATING) return StartupDialog.APP_UPDATE
-    if (state.appDecision == AppUpdateDecision.INSTALLER_LAUNCHED) return StartupDialog.NONE
-    if (state.subStoreCheckFinished && state.hasSubStoreUpdate) {
-        return StartupDialog.SUB_STORE_UPDATE
-    }
     return StartupDialog.NONE
 }
 
@@ -75,7 +71,12 @@ class StartupUpdateViewModel(application: Application) : AndroidViewModel(applic
     private fun checkUpdates() {
         viewModelScope.launch {
             val appCheck = async { AppUpdater.checkLatest() }
-            val subStoreCheck = async { SubStore.checkLatestVersionAwait() }
+            val subStoreUpdate =
+                if (ConfigStore.subStoreUpdatePolicy == SubStoreUpdatePolicy.ON_START) {
+                    async { SubStore.checkAndUpdate(showToast = false) }
+                } else {
+                    null
+                }
 
             val appResult = appCheck.await()
             appResult.onFailure { error ->
@@ -100,12 +101,8 @@ class StartupUpdateViewModel(application: Application) : AndroidViewModel(applic
                 )
             }
 
-            val hasSubStoreUpdate = subStoreCheck.await()
-            updateState {
-                it.copy(
-                    subStoreCheckFinished = true,
-                    hasSubStoreUpdate = hasSubStoreUpdate,
-                )
+            subStoreUpdate?.await()?.onFailure { error ->
+                Timber.e(error, "启动时静默更新 SubStore 失败")
             }
         }
     }
@@ -175,10 +172,6 @@ class StartupUpdateViewModel(application: Application) : AndroidViewModel(applic
                 downloadState = AppDownloadState.Failed(message),
             )
         }
-    }
-
-    fun dismissSubStoreUpdate() {
-        _uiState.update { it.copy(activeDialog = StartupDialog.NONE) }
     }
 
     private fun updateState(transform: (StartupUpdateUiState) -> StartupUpdateUiState) {

@@ -6,19 +6,23 @@ import ano.subcase.caseApp
 import ano.subcase.engine.BackendFiles
 import ano.subcase.engine.BackendScriptValidator
 import ano.subcase.util.AppUtil.unzip
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 object SubStore {
 
     val basePath = caseApp.filesDir
+
+    private val updateMutex = Mutex()
 
     private val localFrontendVersionState = mutableStateOf(ConfigStore.localFrontendVersion)
     var localFrontendVersion: String
@@ -36,51 +40,73 @@ object SubStore {
             localBackendVersionState.value = value
         }
 
+    private val lastFrontendInstalledAtState = mutableStateOf(ConfigStore.lastFrontendInstalledAt)
+    var lastFrontendInstalledAt: Long
+        get() = lastFrontendInstalledAtState.value
+        set(value) {
+            ConfigStore.lastFrontendInstalledAt = value
+            lastFrontendInstalledAtState.value = value
+        }
+
+    private val lastBackendInstalledAtState = mutableStateOf(ConfigStore.lastBackendInstalledAt)
+    var lastBackendInstalledAt: Long
+        get() = lastBackendInstalledAtState.value
+        set(value) {
+            ConfigStore.lastBackendInstalledAt = value
+            lastBackendInstalledAtState.value = value
+        }
+
     var remoteFrontendVersion = ConfigStore.localFrontendVersion
     var remoteBackendVersion = ConfigStore.localBackendVersion
 
-    private var hasCheckedLatestVersion = false
-
-    @Synchronized
-    fun checkLatestVersionOnce(onUpdateAvailable: () -> Unit) {
-        if (hasCheckedLatestVersion) {
-            return
+    /** 升级用户若没有安装时间，用目录/脚本的 lastModified 补上并落盘。 */
+    fun ensureInstallTimestamps() {
+        if (lastFrontendInstalledAt <= 0L) {
+            val frontendDir = File(caseApp.filesDir, "frontend")
+            lastFrontendInstalledAt = frontendDir.takeIf { it.exists() }
+                ?.lastModified()
+                ?.takeIf { it > 0L }
+                ?: System.currentTimeMillis()
         }
-
-        hasCheckedLatestVersion = true
-        checkLatestVersion(onUpdateAvailable = onUpdateAvailable)
-    }
-
-    @OptIn(DelicateCoroutinesApi::class)
-    fun checkLatestVersion(
-        showToast: Boolean = false,
-        onUpdateAvailable: () -> Unit,
-        onFinished: () -> Unit = {}
-    ) {
-        GlobalScope.launch(Dispatchers.Main) {
-            try {
-                if (checkLatestVersionAwait(showToast)) {
-                    onUpdateAvailable()
-                }
-            } finally {
-                onFinished()
-            }
+        if (lastBackendInstalledAt <= 0L) {
+            val script = File(
+                BackendFiles.versionDir(caseApp),
+                BackendFiles.SCRIPT_NAMES.first(),
+            )
+            lastBackendInstalledAt = script.takeIf { it.isFile }
+                ?.lastModified()
+                ?.takeIf { it > 0L }
+                ?: System.currentTimeMillis()
         }
     }
 
-    suspend fun checkLatestVersionAwait(showToast: Boolean = false): Boolean {
+    /** 查询 GitHub 最新 tag，有更新则静默安装；互斥避免启动检查、手动检查和服务循环并发下载。 */
+    suspend fun checkAndUpdate(showToast: Boolean = false): Result<Unit> = updateMutex.withLock {
+        val updateAvailable = checkLatestVersionAwait(showToast)
+        ConfigStore.lastSubStoreRemoteVersionCheckAt = System.currentTimeMillis()
+        if (!updateAvailable) return@withLock Result.success(Unit)
+
+        var succeeded = true
+        if (remoteFrontendVersion.isNotEmpty() && remoteFrontendVersion != localFrontendVersion) {
+            succeeded = updateFrontend(showToast).isSuccess && succeeded
+        }
+        if (remoteBackendVersion.isNotEmpty() && remoteBackendVersion != localBackendVersion) {
+            succeeded = updateBackend(showToast).isSuccess && succeeded
+        }
+        if (succeeded) Result.success(Unit)
+        else Result.failure(IllegalStateException("SubStore 更新失败"))
+    }
+
+    /** 分别拉取前后端最新版本；仅手动检查时 toast。返回是否有可安装的新版本。 */
+    private suspend fun checkLatestVersionAwait(showToast: Boolean = false): Boolean {
         val backendResult = withContext(Dispatchers.IO) {
             GithubUtil.getLatestVersion(REPO_BACKEND)
         }
         if (backendResult.isSuccess) {
             remoteBackendVersion = backendResult.getOrThrow()
         } else {
-            Timber.e(backendResult.exceptionOrNull())
-            Toast.makeText(
-                caseApp,
-                "检测后端新版本失败,请检查您的网络环境",
-                Toast.LENGTH_SHORT
-            ).show()
+            Timber.e(backendResult.exceptionOrNull(), "检测后端新版本失败")
+            toastIf(showToast, "检测后端新版本失败,请检查您的网络环境")
         }
 
         val frontendResult = withContext(Dispatchers.IO) {
@@ -89,43 +115,37 @@ object SubStore {
         if (frontendResult.isSuccess) {
             remoteFrontendVersion = frontendResult.getOrThrow()
         } else {
-            Timber.e(frontendResult.exceptionOrNull())
-            Toast.makeText(
-                caseApp,
-                "检测前端新版本失败,请检查您的网络环境",
-                Toast.LENGTH_SHORT
-            ).show()
+            Timber.e(frontendResult.exceptionOrNull(), "检测前端新版本失败")
+            toastIf(showToast, "检测前端新版本失败,请检查您的网络环境")
         }
 
         val updateAvailable =
             (remoteFrontendVersion.isNotEmpty() && remoteFrontendVersion != localFrontendVersion) ||
                 (remoteBackendVersion.isNotEmpty() && remoteBackendVersion != localBackendVersion)
-        if (!updateAvailable && frontendResult.isSuccess && backendResult.isSuccess && showToast) {
-            Toast.makeText(caseApp, "当前已是最新版本", Toast.LENGTH_SHORT).show()
+        if (!updateAvailable && frontendResult.isSuccess && backendResult.isSuccess) {
+            toastIf(showToast, "当前已是最新版本")
         }
         return updateAvailable
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
-    suspend fun updateFrontend(): Result<Unit> {
-        withContext(Dispatchers.Main) {
-            Timber.d("Updating frontend to ${remoteFrontendVersion}")
-            Toast.makeText(
-                caseApp,
-                "正在将前端更新到 v${remoteFrontendVersion}",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+    /** 下载 dist.zip 并替换 filesDir/frontend，成功后写入前端安装时间。 */
+    private suspend fun updateFrontend(showToast: Boolean): Result<Unit> {
+        Timber.d("Updating frontend to $remoteFrontendVersion")
+        toastIf(showToast, "正在将前端更新到 v$remoteFrontendVersion")
 
-        // Start download frontend
-        val result = GithubUtil.downloadFile(
-            REPO_FRONTEND,
-            remoteFrontendVersion,
-            "dist.zip",
-            caseApp.filesDir.absolutePath
-        )
+        val result = withContext(Dispatchers.IO) {
+            val download = GithubUtil.downloadFile(
+                REPO_FRONTEND,
+                remoteFrontendVersion,
+                "dist.zip",
+                caseApp.filesDir.absolutePath,
+            )
+            if (download.isFailure) {
+                return@withContext Result.failure<Unit>(
+                    download.exceptionOrNull() ?: Exception("Failed to download frontend"),
+                )
+            }
 
-        if (result.isSuccess) {
             val zipPath = caseApp.filesDir.path + "/dist.zip"
             unzip(File(zipPath), File(caseApp.filesDir.path))
 
@@ -134,43 +154,30 @@ object SubStore {
 
                 Files.move(
                     Paths.get(caseApp.filesDir.path + "/dist"),
-                    Paths.get(caseApp.filesDir.path + "/frontend")
+                    Paths.get(caseApp.filesDir.path + "/frontend"),
                 )
 
                 localFrontendVersion = remoteFrontendVersion
-
-                val msg = "Frontend updated to $remoteFrontendVersion"
-                Timber.d(msg)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        caseApp,
-                        "前端已更新到 v${remoteFrontendVersion}",
-                        Toast.LENGTH_SHORT
-                    )
-                        .show()
-                }
+                lastFrontendInstalledAt = System.currentTimeMillis()
             }
+            Result.success(Unit)
+        }
+
+        if (result.isSuccess) {
+            Timber.d("Frontend updated to $remoteFrontendVersion")
+            toastIf(showToast, "前端已更新到 v$remoteFrontendVersion")
             return Result.success(Unit)
         } else {
             Timber.w("前端文件下载失败,请检查网络环境")
-            withContext(Dispatchers.Main) {
-                Toast.makeText(caseApp, "前端文件下载失败,请检查网络环境", Toast.LENGTH_SHORT)
-                    .show()
-            }
-            return Result.failure(Exception("Failed to download frontend"))
+            toastIf(showToast, "前端文件下载失败,请检查网络环境")
+            return Result.failure(result.exceptionOrNull() ?: Exception("Failed to download frontend"))
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
-    suspend fun updateBackend(): Result<Unit> {
-        withContext(Dispatchers.Main) {
-            Timber.d("Updating backend to ${remoteBackendVersion}")
-            Toast.makeText(
-                caseApp,
-                "正在将后端更新到 v${remoteBackendVersion}",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+    /** 校验并下载后端脚本到版本目录，成功后切换 localBackendVersion；下一请求即用新脚本，不必重启服务。 */
+    private suspend fun updateBackend(showToast: Boolean): Result<Unit> {
+        Timber.d("Updating backend to $remoteBackendVersion")
+        toastIf(showToast, "正在将后端更新到 v$remoteBackendVersion")
 
         if (remoteBackendVersion == localBackendVersion) return Result.success(Unit)
         if (!BackendFiles.isSafeVersion(remoteBackendVersion)) {
@@ -209,8 +216,8 @@ object SubStore {
                     target.parentFile?.mkdirs()
                     Files.move(cacheDirectory.toPath(), target.toPath())
 
-                    // 更新判定只使用 release version；激活过程不生成或比较摘要。
                     localBackendVersion = remoteBackendVersion
+                    lastBackendInstalledAt = System.currentTimeMillis()
                     File(caseApp.filesDir, "backend").listFiles()
                         ?.filter {
                             it.isDirectory &&
@@ -226,17 +233,29 @@ object SubStore {
         }
 
         result.onSuccess {
-            val msg = "Backend updated to $remoteBackendVersion"
-            Timber.d(msg)
-            withContext(Dispatchers.Main) {
-                Toast.makeText(caseApp, msg, Toast.LENGTH_SHORT).show()
-            }
+            Timber.d("Backend updated to $remoteBackendVersion")
+            toastIf(showToast, "后端已更新到 v$remoteBackendVersion")
         }.onFailure { error ->
             Timber.e(error, "后端更新失败")
-            withContext(Dispatchers.Main) {
-                Toast.makeText(caseApp, "后端文件更新失败,请检查网络环境", Toast.LENGTH_SHORT).show()
-            }
+            toastIf(showToast, "后端文件更新失败,请检查网络环境")
         }
         return result
     }
+
+    /** 自动更新路径保持静默；手动检查才在主线程弹出结果。 */
+    private suspend fun toastIf(showToast: Boolean, message: String) {
+        if (!showToast) return
+        withContext(Dispatchers.Main) {
+            Toast.makeText(caseApp, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+private val lastInstalledAtFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault())
+
+/** 设置页 footer 用的安装时间；未记录时显示破折号。 */
+fun formatSubStoreInstalledAt(millis: Long): String {
+    if (millis <= 0L) return "—"
+    return lastInstalledAtFormatter.format(Instant.ofEpochMilli(millis))
 }

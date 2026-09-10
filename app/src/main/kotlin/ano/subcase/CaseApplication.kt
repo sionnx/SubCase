@@ -5,6 +5,7 @@ import ano.subcase.util.AppUtil
 import ano.subcase.util.ConfigStore
 import ano.subcase.util.CrashReporter
 import ano.subcase.util.LegacyNodeMigration
+import ano.subcase.util.SubStore
 import timber.log.Timber
 
 lateinit var caseApp: CaseApplication
@@ -25,5 +26,7 @@ class CaseApplication : Application() {
             AppUtil.initFirstOpen()
             ConfigStore.isFirstOpen = false
         }
+
+        SubStore.ensureInstallTimestamps()
     }
 }

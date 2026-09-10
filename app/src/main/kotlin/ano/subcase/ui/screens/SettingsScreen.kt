@@ -12,11 +12,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,15 +43,22 @@ import ano.subcase.R
 import ano.subcase.ui.MainViewModel
 import ano.subcase.ui.components.Section
 import ano.subcase.ui.components.SectionDefaults
-import ano.subcase.ui.components.SubStoreUpdateDialog
 import ano.subcase.ui.components.buildSubStoreUrl
 import ano.subcase.ui.theme.Blue
 import ano.subcase.ui.theme.switchColors
 import ano.subcase.util.CrashReporter
 import ano.subcase.util.ConfigStore
 import ano.subcase.util.SubStore
+import ano.subcase.util.SubStoreUpdatePolicy
+import ano.subcase.util.SubStoreUpdateScheduler
+import ano.subcase.util.formatSubStoreInstalledAt
+import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.DropdownArrowEndAction
+import top.yukonga.miuix.kmp.basic.DropdownDefaults
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -58,21 +66,17 @@ import top.yukonga.miuix.kmp.basic.SmallTopAppBar
 import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.popup.OverlayDropdownPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun SettingsScreen(navController: NavController) {
-
     val mViewModel = viewModel<MainViewModel>()
-    var showSubStoreUpdateDialog by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MiuixTheme.colorScheme.background,
         topBar = {
-            SettingsTopBar(
-                navController = navController,
-                onUpdateAvailable = { showSubStoreUpdateDialog = true }
-            )
+            SettingsTopBar(navController = navController)
         }
     ) {
         Column(
@@ -90,6 +94,8 @@ fun SettingsScreen(navController: NavController) {
             Spacer(modifier = Modifier.padding(10.dp))
             AllowLanSpan(mViewModel)
             Spacer(modifier = Modifier.padding(10.dp))
+            SubStoreUpdatePolicySection()
+            Spacer(modifier = Modifier.padding(10.dp))
             AllowCrashReport(mViewModel)
             if (BuildConfig.DEBUG) {
                 Spacer(modifier = Modifier.padding(10.dp))
@@ -106,11 +112,6 @@ fun SettingsScreen(navController: NavController) {
             FooterSpan()
         }
     }
-
-    SubStoreUpdateDialog(
-        show = showSubStoreUpdateDialog,
-        onDismiss = { showSubStoreUpdateDialog = false }
-    )
 }
 
 @Composable
@@ -118,7 +119,13 @@ fun FrontEndCard(mViewModel: MainViewModel) {
     val clipboardManager = LocalClipboardManager.current
     val urlHandler = LocalUriHandler.current
 
-    Section(header = stringResource(R.string.frontend)) {
+    Section(
+        header = stringResource(R.string.frontend),
+        footer = stringResource(
+            R.string.substore_last_updated,
+            formatSubStoreInstalledAt(SubStore.lastFrontendInstalledAt),
+        ),
+    ) {
         item {
             Text(stringResource(R.string.address))
             // 局域网模式对外暴露真实地址，本机模式固定使用回环地址。
@@ -151,7 +158,10 @@ fun BackEndCard(mViewModel: MainViewModel) {
 
     Section(
         header = stringResource(R.string.backend),
-        footer = "你可以点击backend地址,来快速复制",
+        footer = stringResource(
+            R.string.substore_last_updated,
+            formatSubStoreInstalledAt(SubStore.lastBackendInstalledAt),
+        ),
     ) {
         item {
             Text(stringResource(R.string.address))
@@ -203,6 +213,86 @@ fun AllowLanSpan(mViewModel: MainViewModel) {
 }
 
 @Composable
+private fun SubStoreUpdatePolicySection() {
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    var policy by remember { mutableStateOf(ConfigStore.subStoreUpdatePolicy) }
+    var showPolicyMenu by rememberSaveable { mutableStateOf(false) }
+    var isCheckingUpdate by rememberSaveable { mutableStateOf(false) }
+    val actionColor = MiuixTheme.colorScheme.onSurfaceVariantActions
+    val policyLabels = SubStoreUpdatePolicy.entries.map { stringResource(it.labelRes) }
+    val policyEntry = remember(policy, policyLabels) {
+        DropdownEntry(
+            items = SubStoreUpdatePolicy.entries.mapIndexed { index, option ->
+                DropdownItem(
+                    text = policyLabels[index],
+                    selected = option == policy,
+                    onClick = {
+                        policy = option
+                        ConfigStore.subStoreUpdatePolicy = option
+                        SubStoreUpdateScheduler.notifyPolicyChanged()
+                    },
+                )
+            },
+        )
+    }
+
+    Section(
+        header = stringResource(R.string.substore_update_policy_section),
+        footer = stringResource(R.string.substore_update_policy_interval_hint),
+    ) {
+        item(
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                showPolicyMenu = true
+            },
+        ) {
+            Text(stringResource(R.string.substore_auto_update_policy))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(policy.labelRes),
+                    color = actionColor,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+                DropdownArrowEndAction(actionColor = actionColor)
+                // 行布局保持原样，只把选项列表做成锚定 overlay 下拉。
+                OverlayDropdownPopup(
+                    entry = policyEntry,
+                    show = showPolicyMenu,
+                    onDismiss = { showPolicyMenu = false },
+                    onDismissFinished = {},
+                    maxHeight = null,
+                    dropdownColors = DropdownDefaults.dropdownColors(),
+                    renderInRootScaffold = true,
+                )
+            }
+        }
+        item(
+            enabled = !isCheckingUpdate,
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                isCheckingUpdate = true
+                scope.launch {
+                    try {
+                        SubStore.checkAndUpdate(showToast = true)
+                    } finally {
+                        isCheckingUpdate = false
+                    }
+                }
+            },
+        ) {
+            Text(stringResource(R.string.check_sub_store_updates))
+            if (isCheckingUpdate) {
+                CircularProgressIndicator(
+                    size = 20.dp,
+                    strokeWidth = 2.dp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun AllowCrashReport(mViewModel: MainViewModel) {
     Section(footer = "仅在应用崩溃时发送,我们不会收集任何其他信息") {
         item {
@@ -242,13 +332,7 @@ fun OpenSubStore(mViewModel: MainViewModel) {
 }
 
 @Composable
-fun SettingsTopBar(
-    navController: NavController,
-    onUpdateAvailable: () -> Unit
-) {
-    val haptic = LocalHapticFeedback.current
-    var isCheckingUpdate by rememberSaveable { mutableStateOf(false) }
-
+fun SettingsTopBar(navController: NavController) {
     // SmallTopAppBar 内建系统栏 Insets，为边到边布局提供安全间距。
     SmallTopAppBar(
         title = stringResource(id = R.string.settings),
@@ -259,33 +343,6 @@ fun SettingsTopBar(
                     Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = stringResource(R.string.navigate_back)
                 )
-            }
-        },
-        actions = {
-            IconButton(
-                enabled = !isCheckingUpdate,
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    isCheckingUpdate = true
-                    SubStore.checkLatestVersion(
-                        showToast = true,
-                        onUpdateAvailable = onUpdateAvailable,
-                        onFinished = { isCheckingUpdate = false }
-                    )
-                },
-            ) {
-                if (isCheckingUpdate) {
-                    CircularProgressIndicator(
-                        size = 20.dp,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(
-                        Icons.Outlined.Refresh,
-                        contentDescription = stringResource(R.string.check_sub_store_updates),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
             }
         },
     )

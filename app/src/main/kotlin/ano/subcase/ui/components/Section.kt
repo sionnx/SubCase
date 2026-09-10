@@ -1,6 +1,7 @@
 package ano.subcase.ui.components
 
 import android.content.res.Configuration
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,11 +47,21 @@ object SectionDefaults {
     val HeaderColor: Color @Composable get() = MiuixTheme.colorScheme.onBackground
 }
 
-class SectionScope internal constructor() {
-    internal val items = mutableListOf<@Composable RowScope.() -> Unit>()
+internal class SectionItem(
+    val enabled: Boolean,
+    val onClick: (() -> Unit)?,
+    val content: @Composable RowScope.() -> Unit,
+)
 
-    fun item(content: @Composable RowScope.() -> Unit) {
-        items.add(content)
+class SectionScope internal constructor() {
+    internal val items = mutableListOf<SectionItem>()
+
+    fun item(
+        enabled: Boolean = true,
+        onClick: (() -> Unit)? = null,
+        content: @Composable RowScope.() -> Unit,
+    ) {
+        items.add(SectionItem(enabled, onClick, content))
     }
 }
 
@@ -88,14 +99,22 @@ fun Section(
                         thickness = SectionDefaults.DividerThickness,
                     )
                 }
+                val onClick = item.onClick
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(SectionDefaults.RowHeight)
+                        .then(
+                            if (onClick != null) {
+                                Modifier.clickable(enabled = item.enabled, onClick = onClick)
+                            } else {
+                                Modifier
+                            },
+                        )
                         .padding(horizontal = SectionDefaults.HorizontalPadding),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    content = item,
+                    content = item.content,
                 )
             }
         }

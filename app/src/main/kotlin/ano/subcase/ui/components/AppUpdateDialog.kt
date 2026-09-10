@@ -101,11 +101,6 @@ fun StartupUpdateCoordinator(viewModel: StartupUpdateViewModel) {
         onUpdate = viewModel::startAppUpdate,
         onInstallPermission = viewModel::retryInstall,
     )
-
-    SubStoreUpdateDialog(
-        show = state.activeDialog == StartupDialog.SUB_STORE_UPDATE,
-        onDismiss = viewModel::dismissSubStoreUpdate,
-    )
 }
 
 @Composable

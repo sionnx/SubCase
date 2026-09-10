@@ -8,6 +8,13 @@ import android.os.Looper
 import ano.subcase.engine.CaseEngine
 import ano.subcase.util.currentServerConfig
 import ano.subcase.util.NotificationUtil
+import ano.subcase.util.runSubStoreUpdateLoop
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class SubStoreService : Service() {
 
@@ -17,8 +24,10 @@ class SubStoreService : Service() {
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val updateLoopScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var ownedEngine: CaseEngine? = null
     private var notificationStarted = false
+    private var updateLoopJob: Job? = null
 
     override fun onBind(intent: Intent): IBinder? = null
 
@@ -47,6 +56,7 @@ class SubStoreService : Service() {
             ownedEngine = engine
             caseEngine = engine
             engine.startServer()
+            startUpdateLoop()
             SubStoreServiceController.store.running()
             return START_STICKY
         } catch (error: Exception) {
@@ -81,6 +91,7 @@ class SubStoreService : Service() {
         try {
             cleanup { engine?.stopServer() }
         } finally {
+            stopUpdateLoop()
             if (caseEngine === engine) {
                 caseEngine = null
                 SubStoreServiceController.store.stopped()
@@ -102,8 +113,24 @@ class SubStoreService : Service() {
                 SubStoreServiceController.reportFailure(this, IllegalStateException(message, error))
             }
         } finally {
+            stopUpdateLoop()
+            updateLoopScope.cancel()
             mainHandler.removeCallbacksAndMessages(null)
             super.onDestroy()
         }
+    }
+
+    /** 服务运行后启动 SubStore 周期检查；已有活跃任务则不重复启动。 */
+    private fun startUpdateLoop() {
+        if (updateLoopJob?.isActive == true) return
+        updateLoopJob = updateLoopScope.launch {
+            runSubStoreUpdateLoop()
+        }
+    }
+
+    /** 取消周期检查并清空 Job，避免服务停止后仍后台拉版本。 */
+    private fun stopUpdateLoop() {
+        updateLoopJob?.cancel()
+        updateLoopJob = null
     }
 }

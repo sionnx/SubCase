@@ -20,7 +20,19 @@
     <string name="settings">设置</string>
     <string name="open_settings">打开设置</string>
     <string name="open_sub_store_in_external_browser">在外部浏览器中打开 SubStore</string>
-    <string name="check_sub_store_updates">检查 Sub Store 更新</string>
+    <string name="check_sub_store_updates">检查更新</string>
+    <string name="substore_update_policy_section">SubStore 更新策略</string>
+    <string name="substore_auto_update_policy">自动更新策略</string>
+    <string name="substore_last_updated">上次更新 %1$s</string>
+    <string name="substore_policy_manual">手动更新</string>
+    <string name="substore_policy_on_start">启动 App 时更新</string>
+    <string name="substore_policy_every_3h">每 3 小时</string>
+    <string name="substore_policy_every_6h">每 6 小时</string>
+    <string name="substore_policy_every_12h">每 12 小时</string>
+    <string name="substore_policy_every_24h">每 24 小时</string>
+    <string name="substore_policy_every_48h">每 48 小时</string>
+    <string name="substore_policy_every_7d">每 7 天</string>
+    <string name="substore_update_policy_interval_hint">按时间间隔自动更新仅在服务开启时有效</string>
 
     <string name="notification_content">Sub-Store 服务运行中</string>
 
