@@ -17,17 +17,17 @@ class GithubUtilTest {
             <h3>安装包优化</h3>
             <p>减小 APK 文件体积。</p>
           </div>
-          <include-fragment src="/sionnx/SubCase/releases/expanded_assets/v0.4.2" />
+          <include-fragment src="/sub-store-org/subcase/releases/expanded_assets/v0.4.2" />
         </body></html>
     """.trimIndent()
 
     private val assetsHtml = """
         <html><body>
-          <a href="/sionnx/SubCase/releases/download/v0.4.2/mapping.txt">mapping.txt</a>
-          <a href="/sionnx/SubCase/releases/download/v0.4.2/SubCase-0.4.2-52-debug.apk">
+          <a href="/sub-store-org/subcase/releases/download/v0.4.2/mapping.txt">mapping.txt</a>
+          <a href="/sub-store-org/subcase/releases/download/v0.4.2/SubCase-0.4.2-52-debug.apk">
             SubCase-0.4.2-52-debug.apk
           </a>
-          <a href="/sionnx/SubCase/releases/download/v0.4.2/SubCase-0.4.2-52-release.apk">
+          <a href="/sub-store-org/subcase/releases/download/v0.4.2/SubCase-0.4.2-52-release.apk">
             SubCase-0.4.2-52-release.apk
           </a>
         </body></html>
@@ -37,9 +37,9 @@ class GithubUtilTest {
     fun `release html provides notes and the release apk`() {
         val release = GithubUtil.parseAppRelease(
             tagName = "v0.4.2",
-            releasePageUrl = "https://github.com/sionnx/SubCase/releases/tag/v0.4.2",
+            releasePageUrl = "https://github.com/sub-store-org/subcase/releases/tag/v0.4.2",
             releaseHtml = releaseHtml,
-            assetsPageUrl = "https://github.com/sionnx/SubCase/releases/expanded_assets/v0.4.2",
+            assetsPageUrl = "https://github.com/sub-store-org/subcase/releases/expanded_assets/v0.4.2",
             assetsHtml = assetsHtml,
         )
 
@@ -57,9 +57,9 @@ class GithubUtilTest {
     fun `missing release apk is reported`() {
         GithubUtil.parseAppRelease(
             tagName = "v0.4.2",
-            releasePageUrl = "https://github.com/sionnx/SubCase/releases/tag/v0.4.2",
+            releasePageUrl = "https://github.com/sub-store-org/subcase/releases/tag/v0.4.2",
             releaseHtml = releaseHtml,
-            assetsPageUrl = "https://github.com/sionnx/SubCase/releases/expanded_assets/v0.4.2",
+            assetsPageUrl = "https://github.com/sub-store-org/subcase/releases/expanded_assets/v0.4.2",
             assetsHtml = "<a href='/mapping.txt'>mapping.txt</a>",
         )
     }

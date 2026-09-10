@@ -11,7 +11,7 @@ import java.net.URI
 
 const val REPO_BACKEND = "https://github.com/sub-store-org/Sub-Store"
 const val REPO_FRONTEND = "https://github.com/sub-store-org/Sub-Store-Front-End"
-const val REPO_APP = "https://github.com/sionnx/SubCase"
+const val REPO_APP = "https://github.com/sub-store-org/subcase"
 
 object GithubUtil {
     private val client = OkHttpClient()
