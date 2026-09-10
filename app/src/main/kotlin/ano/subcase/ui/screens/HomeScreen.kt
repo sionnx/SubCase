@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.collectAsState
+import ano.subcase.service.SubStoreServiceController
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -42,7 +44,8 @@ import kotlin.math.roundToInt
 fun HomeScreen(navController: NavController) {
     val mViewModel = viewModel<MainViewModel>()
     val homeViewModel = viewModel<HomeViewModel>()
-    val isServiceRunning = GlobalStatus.isServiceRunning.value
+    val serviceState by SubStoreServiceController.state.collectAsState()
+    val isServiceRunning = serviceState.isRunning
 
     val density = LocalDensity.current
     val edgePx = with(density) { 16.dp.toPx() }
@@ -92,6 +95,7 @@ fun HomeScreen(navController: NavController) {
             }
             HomePanel(
                 isServiceRunning = isServiceRunning,
+                serviceEnabled = !serviceState.isBusy,
                 onSettingsClick = { navController.navigate("settings_screen") },
                 onToggleService = {
                     if (isServiceRunning) {

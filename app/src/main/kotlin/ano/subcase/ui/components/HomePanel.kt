@@ -58,6 +58,7 @@ fun HomePanel(
     onSettingsClick: () -> Unit,
     onToggleService: () -> Unit,
     modifier: Modifier = Modifier,
+    serviceEnabled: Boolean = true,
 ) {
     val darkTheme = isSystemInDarkTheme()
     val panelFill = if (darkTheme) DarkPanelFill else LightPanelFill
@@ -108,6 +109,7 @@ fun HomePanel(
             iconBackground = itemIconBg,
             shadowColor = shadowColor,
             onClick = onToggleService,
+            enabled = serviceEnabled,
         ) {
             Icon(
                 painter = painterResource(
@@ -138,6 +140,7 @@ private fun PanelItem(
     shadowColor: Color,
     onClick: () -> Unit,
     stateDescription: String? = null,
+    enabled: Boolean = true,
     icon: @Composable () -> Unit,
 ) {
     Box(
@@ -153,6 +156,7 @@ private fun PanelItem(
             )
             .background(iconBackground, CircleShape)
             .clickable(
+                enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 role = Role.Button,

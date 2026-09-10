@@ -5,11 +5,8 @@ import android.content.Intent
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.widget.Toast
-import ano.subcase.GlobalStatus
 import ano.subcase.engine.CaseEngine
 import ano.subcase.util.currentServerConfig
-import ano.subcase.util.CrashReporter
 import ano.subcase.util.NotificationUtil
 
 class SubStoreService : Service() {
@@ -28,6 +25,7 @@ class SubStoreService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
             if (caseEngine != null) return START_STICKY
+            SubStoreServiceController.store.starting()
             notificationStarted = true
             NotificationUtil.startNotification(this)
             val config = currentServerConfig()
@@ -49,7 +47,7 @@ class SubStoreService : Service() {
             ownedEngine = engine
             caseEngine = engine
             engine.startServer()
-            GlobalStatus.isServiceRunning.value = true
+            SubStoreServiceController.store.running()
             return START_STICKY
         } catch (error: Exception) {
             handleFailure(error)
@@ -59,10 +57,12 @@ class SubStoreService : Service() {
     }
 
     private fun handleFailure(error: Throwable) {
+        val failure = if (SubStoreServiceController.state.value.phase == ServicePhase.Starting)
+            ServiceFailure.Startup else ServiceFailure.Runtime
         val cleanupError = releaseResources()
+        SubStoreServiceController.store.stopped(failure)
         if (cleanupError != null && cleanupError !== error) error.addSuppressed(cleanupError)
-        CrashReporter.recordException(error)
-        Toast.makeText(this, error.message ?: "Sub-Store 服务失败", Toast.LENGTH_LONG).show()
+        SubStoreServiceController.reportFailure(this, error)
     }
 
     private fun releaseResources(): Throwable? {
@@ -83,7 +83,7 @@ class SubStoreService : Service() {
         } finally {
             if (caseEngine === engine) {
                 caseEngine = null
-                GlobalStatus.isServiceRunning.value = false
+                SubStoreServiceController.store.stopped()
             }
             if (notificationStarted) {
                 notificationStarted = false
@@ -97,9 +97,9 @@ class SubStoreService : Service() {
     override fun onDestroy() {
         try {
             releaseResources()?.let { error ->
+                SubStoreServiceController.store.stopped(ServiceFailure.Shutdown)
                 val message = "停止 Sub-Store 服务失败：${error.message ?: error.javaClass.simpleName}"
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-                CrashReporter.recordException(error)
+                SubStoreServiceController.reportFailure(this, IllegalStateException(message, error))
             }
         } finally {
             mainHandler.removeCallbacksAndMessages(null)

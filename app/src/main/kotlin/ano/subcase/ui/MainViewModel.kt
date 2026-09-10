@@ -1,12 +1,11 @@
 package ano.subcase.ui
 
-import android.content.Intent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import ano.subcase.caseApp
-import ano.subcase.service.SubStoreService
+import ano.subcase.service.SubStoreServiceController
 import ano.subcase.util.ConfigStore
 
 class MainViewModel : ViewModel() {
@@ -20,11 +19,10 @@ class MainViewModel : ViewModel() {
     }
 
     fun startService() {
-        val intent = Intent(caseApp, SubStoreService::class.java)
-        caseApp.startService(intent)
+        SubStoreServiceController.start(caseApp)
     }
 
     fun stopService() {
-        caseApp.stopService(Intent(caseApp, SubStoreService::class.java))
+        SubStoreServiceController.stop(caseApp)
     }
 }

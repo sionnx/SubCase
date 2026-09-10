@@ -6,5 +6,4 @@ object GlobalStatus {
     var isWifi = mutableStateOf(false)
     var lanIP = mutableStateOf("")
 
-    var isServiceRunning = mutableStateOf(false)
 }

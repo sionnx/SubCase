@@ -40,4 +40,11 @@
     <string name="notification_permission_settings">前往设置</string>
     <string name="notification_permission_failed">无法打开通知授权页面，请重试。</string>
     <string name="panel_position_save_failed">位置保存失败</string>
+    <string name="tile_stopped">已停止</string>
+    <string name="tile_starting">启动中</string>
+    <string name="tile_running">运行中</string>
+    <string name="tile_stopping">停止中</string>
+    <string name="tile_start_failed">启动失败</string>
+    <string name="tile_runtime_failed">服务异常</string>
+    <string name="tile_stop_failed">停止异常</string>
 </resources>

@@ -40,4 +40,11 @@
     <string name="notification_permission_settings">Open settings</string>
     <string name="notification_permission_failed">Unable to open notification authorization. Please try again.</string>
     <string name="panel_position_save_failed">Failed to save panel position</string>
+    <string name="tile_stopped">Stopped</string>
+    <string name="tile_starting">Starting</string>
+    <string name="tile_running">Running</string>
+    <string name="tile_stopping">Stopping</string>
+    <string name="tile_start_failed">Start failed</string>
+    <string name="tile_runtime_failed">Service error</string>
+    <string name="tile_stop_failed">Stop error</string>
 </resources>
