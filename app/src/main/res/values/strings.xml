@@ -7,8 +7,8 @@
     <string name="service_running">Service is running</string>
     <string name="service_stopped">Service is stopped</string>
     <string name="sub_store_not_started">SubStore has not started</string>
-    <string name="frontend">Frontend</string>
-    <string name="backend">Backend</string>
+    <string name="frontend">SubStore Frontend</string>
+    <string name="backend">SubStore Backend</string>
     <string name="address">Address</string>
     <string name="allow_lan">Allow Lan</string>
     <string name="allow_crash_report">Allow crash reporting</string>

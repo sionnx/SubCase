@@ -7,8 +7,8 @@
     <string name="service_running">服务正在运行</string>
     <string name="service_stopped">服务已停止</string>
     <string name="sub_store_not_started">SubStore 尚未启动</string>
-    <string name="frontend">前端</string>
-    <string name="backend">后端</string>
+    <string name="frontend">SubStore 前端</string>
+    <string name="backend">SubStore 后端</string>
     <string name="address">地址</string>
     <string name="allow_lan">允许局域网访问</string>
     <string name="allow_crash_report">允许上报崩溃</string>
